@@ -69,6 +69,7 @@ export class API {
    */
   constructor (ld) {
     if (!ld) return
+    console.log(ld)
 
     if (ld.view && ld.view.type === PartialCollectionView) {
       this.isPaged = true
@@ -80,6 +81,7 @@ export class API {
     if (ld.api && ld.api.type === IriTemplate) {
       this.hasUrlTemplate = true
       this.urlTemplate = ld.api
+      console.log('URL template: ' + ld.api.template)
       
       let mappings = ld.api.mapping
       this.supportedUrlProps = []
@@ -87,7 +89,7 @@ export class API {
         let propId = mapping.property.id
         for (let prop in URL_PROPS) {
           if (URL_PROPS[prop] === propId) {
-            console.log('yay, property id recognized: ' + propId)
+            console.log('property recognized: ' + propId + ' (variable: ' + mapping.variable + ')')
             this.supportedUrlProps.push(propId)
           }
         }          
