@@ -46,7 +46,8 @@
       "lib": "covjson-rest-client"
     },
     "dependencies": {
-      "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@^0.2.0"
+      "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@master",
+      "jsonld": "github:digitalbazaar/jsonld.js@^0.4.2"
     },
     "devDependencies": {
       "assert": "github:jspm/nodelibs-assert@^0.1.0",

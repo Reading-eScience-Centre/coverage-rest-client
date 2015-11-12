@@ -17,8 +17,9 @@ System.config({
     "babel": "npm:babel-core@5.8.34",
     "babel-runtime": "npm:babel-runtime@5.8.34",
     "core-js": "npm:core-js@1.2.6",
-    "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@0.1.1",
-    "github:Reading-eScience-Centre/covjson-reader@0.1.1": {
+    "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@master",
+    "jsonld": "github:digitalbazaar/jsonld.js@0.4.2",
+    "github:Reading-eScience-Centre/covjson-reader@master": {
       "cbor": "github:paroga/cbor-js@0.1.0",
       "ndarray": "npm:ndarray@1.0.18"
     },
