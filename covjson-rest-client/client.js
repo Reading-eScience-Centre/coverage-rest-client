@@ -24,14 +24,16 @@ export function read (url) {
       ],
       '@id': result.id,
       'view': {}
-    }).then(framed => {
-      let view = framed.view
+    })
+    .then(framed => jsonld.compact(framed, framed['@context']))
+    .then(compacted => {
+      let view = compacted.view
       if (view && view['@type'] === PartialCollectionView) {
         // we are in a page of a paged collection
         console.log(view)
         
       }
-      let api = framed.api
+      let api = compacted.api
       if (api && api['@graph']) {
         api = api['@graph']
         if (api['@type'] === IriTemplate) {
