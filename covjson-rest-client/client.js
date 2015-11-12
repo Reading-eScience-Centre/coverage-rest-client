@@ -19,6 +19,9 @@ export function read (url) {
       '@context': [
         HYDRA_CONTEXT,
         {
+          // Hydra has "@type": "@vocab" which confuses the compaction, overriding it
+          // see https://github.com/json-ld/json-ld.org/issues/400
+          "property": { "@id": "hydra:property" },
           'api': COVAPI_API
         }
       ],
