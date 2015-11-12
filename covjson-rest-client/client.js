@@ -1,5 +1,5 @@
-import CovJSON from 'covjson-reader'
-import {promise as jsonld} from 'jsonld'
+import * as CovJSON from 'covjson-reader'
+import {promises as jsonld} from 'jsonld'
 
 const HYDRA_CONTEXT = 'http://www.w3.org/ns/hydra/core'
 const PartialCollectionView = 'PartialCollectionView'
