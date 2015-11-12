@@ -47,7 +47,8 @@
     },
     "dependencies": {
       "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@master",
-      "jsonld": "github:digitalbazaar/jsonld.js@^0.4.2"
+      "jsonld": "github:digitalbazaar/jsonld.js@^0.4.2",
+      "url-template": "npm:url-template@^2.0.6"
     },
     "devDependencies": {
       "assert": "github:jspm/nodelibs-assert@^0.1.0",

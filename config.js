@@ -19,6 +19,7 @@ System.config({
     "core-js": "npm:core-js@1.2.6",
     "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@master",
     "jsonld": "github:digitalbazaar/jsonld.js@0.4.2",
+    "url-template": "npm:url-template@2.0.6",
     "github:Reading-eScience-Centre/covjson-reader@master": {
       "cbor": "github:paroga/cbor-js@0.1.0",
       "ndarray": "npm:ndarray@1.0.18"
