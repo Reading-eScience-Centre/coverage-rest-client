@@ -22,8 +22,7 @@ export function read (url) {
           'api': COVAPI_API
         }
       ],
-      '@id': result.id,
-      'view': {}
+      '@id': result.id
     })
     .then(framed => jsonld.compact(framed, framed['@context']))
     .then(compacted => {
@@ -34,12 +33,9 @@ export function read (url) {
         
       }
       let api = compacted.api
-      if (api && api['@graph']) {
-        api = api['@graph']
-        if (api['@type'] === IriTemplate) {
-          // we can access the API via an IriTemplate
-          console.log(api)
-        }
+      if (api && api['@type'] === IriTemplate) {
+        // we can access the API via an IriTemplate
+        console.log(api)
       }
       
       // later we return our own CoverageCollection/Coverage implementation
