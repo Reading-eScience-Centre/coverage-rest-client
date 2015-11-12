@@ -1,0 +1,71 @@
+{
+  "name": "covjson-rest-client",
+  "version": "0.1.0",
+  "license": "BSD-3-Clause",
+  "description": "CoverageJSON REST API client",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Reading-eScience-Centre/covjson-rest-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Reading-eScience-Centre/covjson-rest-client/issues"
+  },
+  "author": {
+    "name": "Maik Riechert"
+  },
+  "files": [
+    "covjson-rest-client.src.js",
+    "covjson-rest-client.min.js"
+  ],
+  "registry": "jspm",
+  "format": "esm",
+  "scripts": {
+    "docs": "esdoc -c esdoc.json",
+    "postinstall": "jspm install",
+    "style": "standard",
+    "test": "karma start --single-run",
+    "karma": "karma start",
+    "saucelabs": "karma start karma.conf-ci.js",
+    "build": "npm run build-src && npm run build-min",
+    "build-src": "jspm bundle-sfx covjson-rest-client/client covjson-rest-client.src.js --format global --global-name CovJSONREST --skip-source-maps",
+    "build-min": "jspm bundle-sfx covjson-rest-client/client covjson-rest-client.min.js --format global --global-name CovJSONREST --minify --skip-source-maps",
+    "prepublish": "npm run build"
+  },
+  "standard": {
+    "parser": "babel-eslint",
+    "ignore": [
+      "config.js",
+      "karma.conf.js",
+      "karma.conf-ci.js"
+    ]
+  },
+  "jspm": {
+    "main": "client",
+    "files": null,
+    "directories": {
+      "lib": "covjson-rest-client"
+    },
+    "dependencies": {
+      "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@^0.2.0"
+    },
+    "devDependencies": {
+      "assert": "github:jspm/nodelibs-assert@^0.1.0",
+      "babel": "npm:babel-core@^5.8.22",
+      "babel-runtime": "npm:babel-runtime@^5.8.20",
+      "core-js": "npm:core-js@^1.1.0"
+    }
+  },
+  "devDependencies": {
+    "babel-eslint": "^4.1.3",
+    "esdoc": "^0.3.0",
+    "esdoc-importpath-plugin": "0.0.1",
+    "jspm": "^0.16.13",
+    "karma": "^0.13.9",
+    "karma-chrome-launcher": "^0.2.0",
+    "karma-jspm": "^2.0.1",
+    "karma-mocha": "^0.2.0",
+    "karma-sauce-launcher": "^0.2.14",
+    "mocha": "^2.2.5",
+    "standard": "^5.1.0"
+  }
+}

@@ -1,0 +1,9 @@
+/.project
+/*.log
+/node_modules/
+/jspm_packages/
+/sauce.json
+/covjson-rest-client.min.js
+/covjson-rest-client.src.js
+/docs/
+/.tern-project
