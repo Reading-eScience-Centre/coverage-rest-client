@@ -10,7 +10,11 @@ const COVAPI_API = COVAPI_NS + 'api'
 
 export function read (url) {
   return CovJSON.read(url).then(result => {
-    // our main source of API information comes from data within the .ld property
+    // Our main source of API information comes from data within the .ld property.
+    // To query that we need the id of the coverage or coveragecollection.
+    if (!result.id) {
+      return result
+    }
     return jsonld.frame(result.ld, {
       '@context': [
         HYDRA_CONTEXT,
