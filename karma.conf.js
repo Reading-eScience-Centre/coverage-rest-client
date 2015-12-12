@@ -14,7 +14,7 @@ module.exports = function(config) {
 
     jspm: {
       loadFiles: ['test/**/*.js'],
-      serveFiles: ['covjson-rest-client/**/*.js']
+      serveFiles: ['coverage-rest-client/**/*.js']
     },
 
     // list of files / patterns to load and/or serve in the browser

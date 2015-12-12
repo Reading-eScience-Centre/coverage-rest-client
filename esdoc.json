@@ -1,12 +1,12 @@
 {
-  "source": "./covjson-rest-client",
+  "source": "./coverage-rest-client",
   "destination": "./docs",
   "plugins": [
     {
       "name": "esdoc-importpath-plugin",
       "option": {
         "replaces": [
-          {"from": "^covjson-rest-client/", "to": ""},
+          {"from": "^coverage-rest-client/", "to": ""},
           {"from": "client.js", "to": ""}
         ]
       }

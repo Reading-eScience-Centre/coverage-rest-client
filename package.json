@@ -1,21 +1,21 @@
 {
-  "name": "covjson-rest-client",
+  "name": "coverage-rest-client",
   "version": "0.1.0",
   "license": "BSD-3-Clause",
-  "description": "CoverageJSON REST API client",
+  "description": "Coverage REST API client",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Reading-eScience-Centre/covjson-rest-client.git"
+    "url": "https://github.com/Reading-eScience-Centre/coverage-rest-client.git"
   },
   "bugs": {
-    "url": "https://github.com/Reading-eScience-Centre/covjson-rest-client/issues"
+    "url": "https://github.com/Reading-eScience-Centre/coverage-rest-client/issues"
   },
   "author": {
     "name": "Maik Riechert"
   },
   "files": [
-    "covjson-rest-client.src.js",
-    "covjson-rest-client.min.js"
+    "coverage-rest-client.src.js",
+    "coverage-rest-client.min.js"
   ],
   "registry": "jspm",
   "format": "esm",
@@ -27,8 +27,8 @@
     "karma": "karma start",
     "saucelabs": "karma start karma.conf-ci.js",
     "build": "npm run build-src && npm run build-min",
-    "build-src": "jspm bundle-sfx covjson-rest-client/client covjson-rest-client.src.js --format global --global-name CovJSONREST --skip-source-maps",
-    "build-min": "jspm bundle-sfx covjson-rest-client/client covjson-rest-client.min.js --format global --global-name CovJSONREST --minify --skip-source-maps",
+    "build-src": "jspm bundle-sfx coverage-rest-client/client coverage-rest-client.src.js --format global --global-name CoverageREST --skip-source-maps",
+    "build-min": "jspm bundle-sfx coverage-rest-client/client coverage-rest-client.min.js --format global --global-name CoverageREST --minify --skip-source-maps",
     "prepublish": "npm run build"
   },
   "standard": {
@@ -43,10 +43,9 @@
     "main": "client",
     "files": null,
     "directories": {
-      "lib": "covjson-rest-client"
+      "lib": "coverage-rest-client"
     },
     "dependencies": {
-      "covjson-reader": "github:Reading-eScience-Centre/covjson-reader@master",
       "jsonld": "github:digitalbazaar/jsonld.js@^0.4.2",
       "url-template": "npm:url-template@^2.0.6"
     },

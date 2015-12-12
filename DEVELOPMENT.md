@@ -39,9 +39,9 @@ A stand-alone bundle that exposes the global `CovJSONREST` object can be created
 ```
 $ npm run build
 ```
-This will build the covjson-rest-client.{src|min}.js files in the root project folder.
+This will build the coverage-rest-client.{src|min}.js files in the root project folder.
 
-Note that currently the covjson-reader dependency (and its dependencies) is included in the bundle.
+Note that currently the coverage-reader dependency (and its dependencies) is included in the bundle.
 
 ## Publishing a new version
 

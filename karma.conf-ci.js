@@ -41,7 +41,7 @@ module.exports = function(config) {
 
     jspm: {
       loadFiles: ['test/**/*.js'],
-      serveFiles: ['covjson-rest-client/**/*.js']
+      serveFiles: ['coverage-rest-client/**/*.js']
     },
 
     // list of files / patterns to load in the browser
@@ -84,7 +84,7 @@ module.exports = function(config) {
     autoWatch: true,
 
     sauceLabs: {
-      testName: 'covjson-rest-client',
+      testName: 'coverage-rest-client',
       recordScreenshots: false
     },
     captureTimeout: 120000,
