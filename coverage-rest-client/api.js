@@ -110,9 +110,9 @@ export class API {
    */
   getTimeSubsetUrl (time) {
     let iso = time.toISOString()
-    return urltemplate.parse(this.urlTemplate).expand({
-      [this.supportedUrlProps.get(URL_PROPS.filterTimeStart)]: iso,
-      [this.supportedUrlProps.get(URL_PROPS.filterTimeEnd)]: iso
+    return urltemplate.parse(this.urlTemplate.template).expand({
+      [this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)]: iso,
+      [this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)]: iso
     })
   }
   
