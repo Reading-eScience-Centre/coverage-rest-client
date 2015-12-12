@@ -32,7 +32,7 @@ export function wrap (data, options) {
       newcov.subsetByIndex = constraints => {
         return data.loadDomain().then(domain => {    
           let useApi = true
-          if (Object.keys(constraints).length !== 1) {
+          if (Object.keys(constraints).filter(k => constraints[k] !== undefined && constraints[k] !== null).length !== 1) {
             useApi = false
           }
           // TODO don't hardcode the time axis key, search for it with referencing system info
