@@ -101,8 +101,8 @@ export class API {
   }
   
   get supportsTimeSubsetting () {
-    return this.supportedUrlProps.has(URL_PROPS.filterTimeStart) && 
-           this.supportedUrlProps.has(URL_PROPS.filterTimeEnd)
+    return this.supportedUrlProps.has(URL_PROPS.subsetTimeStart) && 
+           this.supportedUrlProps.has(URL_PROPS.subsetTimeEnd)
   }
   
   /**
