@@ -58,6 +58,7 @@ export function wrap (data, options) {
           return load(url).then(subset => wrap(subset, options))
         })
       }
+      return newcov
     }
     
     return data
