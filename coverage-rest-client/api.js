@@ -77,6 +77,8 @@ export class API {
       
       console.log(ld.view)
     }
+    
+    this.supportedUrlProps = new Map()
 
     if (ld.api && ld.api.type === IriTemplate) {
       this.hasUrlTemplate = true
@@ -84,19 +86,34 @@ export class API {
       console.log('URL template: ' + ld.api.template)
       
       let mappings = ld.api.mapping
-      this.supportedUrlProps = []
       for (let mapping of mappings) {
         let propId = mapping.property.id
         for (let prop in URL_PROPS) {
           if (URL_PROPS[prop] === propId) {
             console.log('property recognized: ' + propId + ' (variable: ' + mapping.variable + ')')
-            this.supportedUrlProps.push(propId)
+            this.supportedUrlProps.set(propId, mapping.variable)
           }
         }          
       }
       
       console.log(ld.api)
     }
+  }
+  
+  get supportsTimeSubsetting () {
+    return this.supportedUrlProps.has(URL_PROPS.filterTimeStart) && 
+           this.supportedUrlProps.has(URL_PROPS.filterTimeEnd)
+  }
+  
+  /**
+   * @param {Date} time The single time slice to subset to.
+   */
+  getTimeSubsetUrl (time) {
+    let iso = time.toISOString()
+    return urltemplate.parse(this.urlTemplate).expand({
+      [this.supportedUrlProps.get(URL_PROPS.filterTimeStart)]: iso,
+      [this.supportedUrlProps.get(URL_PROPS.filterTimeEnd)]: iso
+    })
   }
   
 }

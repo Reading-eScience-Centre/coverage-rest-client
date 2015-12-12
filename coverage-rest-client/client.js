@@ -7,14 +7,67 @@ import * as API from './api.js'
  * via a remote API, in particular subsetting.
  * 
  * @param {object} data The Coverage API object to wrap.
- * @param {object} options Controls which operations should be run locally or remotely.
+ * @param {object} options Options which control the behaviour of the wrapper.
+ * @param {function} options.loader 
+ *   The function to use for loading coverage data from a URL.
+ *   It must return a Promise succeeding with a Coverage API object. 
  * @returns {object} The wrapped Coverage API object.
  */
 export function wrap (data, options) {
+  if (typeof options.loader !== 'function') {
+    throw new Error('options.loader must be a function')
+  }
+  let load = options.loader
+  
   return API.discover(data).then(api => {
+    if (data.coverages) {
+      // collections not supported yet
+      return data
+    }
     
-    // later we return our own CoverageCollection/Coverage implementation
-    // which is clever and can use the API (or fall-back to the local implementation)
+    // we implement this ad-hoc as we need it and refactor later
+    if (api.supportsTimeSubsetting) {
+      // wrap subsetByIndex and use API if only time is subsetted
+      let newcov = shallowcopy(data)
+      newcov.subsetByIndex = constraints => {
+        return data.loadDomain().then(domain => {    
+          let useApi = true
+          if (Object.keys(constraints).length !== 1) {
+            useApi = false
+          }
+          // TODO don't hardcode the time axis key, search for it with referencing system info
+          //  -> this is not standardized in the Coverage JS API spec yet
+          let timeAxis = 't'
+          if (!(timeAxis in constraints)) {
+            useApi = false
+          }
+          if (typeof constraints.t !== 'number') {
+            // TODO normalize before checking (could be single-element array or start/stop/step)
+            useApi = false
+          }
+          let timeVal = domain.axes.get(timeAxis).values[constraints.t]
+          if (isNaN(Date.parse(timeVal))) {
+            useApi = false
+          }
+          
+          if (!useApi) {
+            return data.subsetByIndex(constraints)
+          }
+          
+          let url = api.getTimeSubsetUrl(new Date(timeVal))
+          return load(url).then(subset => wrap(subset, options))
+        })
+      }
+    }
+    
     return data
   })
+}
+
+function shallowcopy (obj) {
+  let copy = Object.create(Object.getPrototypeOf(obj))
+  for (let prop in obj) {
+    copy[prop] = obj[prop]
+  }
+  return copy
 }
