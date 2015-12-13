@@ -3,8 +3,9 @@
 /node_modules/
 /jspm_packages/
 /sauce.json
-/covjson-rest-client.min.js
-/covjson-rest-client.src.js
 /docs/
 /.tern-project
 /test.html
+/config.js
+/coverage-rest-client.min.js
+/coverage-rest-client.src.js
