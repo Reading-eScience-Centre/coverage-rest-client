@@ -174,7 +174,14 @@ function wrapCoverage (coverage, options) {
           }
           
           let url = api.getTimeSubsetUrl(new Date(timeVal))
-          return load(url).then(subset => wrap(subset, options))
+          return load(url).then(subset => {
+            // apply remaining subset constraints
+            let newconstraints = shallowcopy(constraints)
+            delete newconstraints[timeAxis]
+            return subset.subsetByIndex(newconstraints).then(subset2 => {
+              return wrap(subset2, options)
+            })
+          })
         })
       }
       return newcov
