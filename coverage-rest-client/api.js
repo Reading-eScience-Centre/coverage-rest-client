@@ -7,6 +7,11 @@ const IriTemplate = 'IriTemplate'
       
 const COVAPI_NS = 'http://coverageapi.org/ns#'
 const COVAPI_API = COVAPI_NS + 'api'
+const CanInclude = COVAPI_NS + 'canInclude'
+
+const COVJSON_NS = 'http://coveragejson.org/def#'
+const Domain = COVJSON_NS + 'Domain'
+const Range = COVJSON_NS + 'Range'
 
 const OSGEO_NS = 'http://a9.com/-/opensearch/extensions/geo/1.0/'
 const OSTIME_NS = 'http://a9.com/-/opensearch/extensions/time/1.0/'
@@ -54,13 +59,7 @@ export function discover (cov) {
     id: cov.id
   })
   .then(framed => jsonld.compact(framed, framed['@context']))
-  .then(compacted => {
-    
-    // TODO what about Prefer header for embedding?
-    
-    
-    return new API(compacted)
-  })
+  .then(compacted => new API(compacted))
 }
 
 export class API {
@@ -98,11 +97,40 @@ export class API {
       
       console.log(ld.api)
     }
+    
+    if (ld[CanInclude]) {
+      // server supports optional inclusion via Prefer header
+      this.supportsPreferHeaders = true
+    }
+  }
+  
+  getIncludeDomainAndRangeHeaders () {
+    if (!this.supportsPreferHeaders) {
+      return {}
+    }
+    return {
+      Prefer: 'return=representation; ' + 
+              'include="' + Domain + ' ' + Range + '"'
+    }
+  }
+  
+  get supportsTimeFiltering () {
+    return this.supportedUrlProps.has(URL_PROPS.filterTimeStart) && 
+           this.supportedUrlProps.has(URL_PROPS.filterTimeEnd)
   }
   
   get supportsTimeSubsetting () {
     return this.supportedUrlProps.has(URL_PROPS.subsetTimeStart) && 
            this.supportedUrlProps.has(URL_PROPS.subsetTimeEnd)
+  }
+  
+  getTimeFilterUrl (timeStart, timeEnd) {
+    let isoStart = timeStart.toISOString()
+    let isoEnd = timeEnd.toISOString()
+    return urltemplate.parse(this.urlTemplate.template).expand({
+      [this.supportedUrlProps.get(URL_PROPS.filterTimeStart)]: isoStart,
+      [this.supportedUrlProps.get(URL_PROPS.filterTimeEnd)]: isoEnd
+    })
   }
   
   /**
