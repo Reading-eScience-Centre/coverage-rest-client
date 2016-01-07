@@ -1,13 +1,14 @@
 {
-  "source": "./coverage-rest-client",
+  "title": "coverage-rest-client documentation",
+  "source": "./src",
   "destination": "./docs",
   "plugins": [
     {
       "name": "esdoc-importpath-plugin",
       "option": {
         "replaces": [
-          {"from": "^coverage-rest-client/", "to": ""},
-          {"from": "client.js", "to": ""}
+          {"from": "/src/client.js", "to": ""},
+          {"from": "^src/", "to": "lib/"}
         ]
       }
     }

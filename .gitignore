@@ -1,11 +1,10 @@
 /.project
 /*.log
 /node_modules/
-/jspm_packages/
 /sauce.json
 /docs/
 /.tern-project
-/test.html
-/config.js
 /coverage-rest-client.min.js
 /coverage-rest-client.src.js
+/coverage-rest-client.min.js.map
+/lib/
