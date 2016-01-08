@@ -19,7 +19,10 @@
       "src/"
     ],
     "main": "src/client.js",
-    "registry": "npm"
+    "dependencies": {
+      "jsonld": "npm:jsonld@^0.4.2",
+      "url-template": "npm:url-template@^2.0.6"
+    }
   },
   "dependencies": {
     "jsonld": "^0.4.2",
