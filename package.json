@@ -14,6 +14,9 @@
     "name": "Maik Riechert"
   },
   "main": "lib/client.js",
+  "jspm": {
+    "main": "src/client.js"
+  },
   "dependencies": {
     "jsonld": "^0.4.2",
     "url-template": "^2.0.6"
