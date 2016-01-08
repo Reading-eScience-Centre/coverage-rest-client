@@ -15,7 +15,8 @@
   },
   "main": "lib/client.js",
   "jspm": {
-    "main": "src/client.js"
+    "main": "src/client.js",
+    "registry": "npm"
   },
   "dependencies": {
     "jsonld": "^0.4.2",
