@@ -28,6 +28,7 @@ export function wrap (data, options) {
 }
 
 function wrapCollection (collection, options) {
+  // TODO wrap each individual coverage as well!
   return API.discover(collection).then(api => {
     let newcoll = shallowcopy(collection)
     newcoll.query = () => {
