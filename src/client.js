@@ -171,15 +171,22 @@ function wrapCoverage (coverage, options) {
           }
           
           if (!useApi) {
-            return coverage.subsetByIndex(constraints).then(subset2 => {
-              // we preserve LD info which would otherwise have been removed
-              // TODO only preserve API info that we use (the rest is unsafe)
-              //  -> e.g. it would be incorrect to copy API templates based on index-based subsetting
-              // TODO need id for JSON-LD querying, think about this
-              subset2.id = coverage.id
-              subset2.ld = coverage.ld
-              return wrap(subset2, options)
-            })
+            // Note that we DON'T wrap the locally subsetted coverage again.
+            // This would be incorrect as a partially applied local subset would not be
+            // known by the API metadata and therefore a subsequent API subset operation would
+            // return wrong data (too much).
+            // A way out would be to attach the original API info to the original coverage identity,
+            // which can be established with "subsetOf".
+            // Somewhere the constraints used for subsetting would have to be stored as well,
+            // so that we can reproduce them.
+            // E.g.:
+            // 1. Coverage A with API info
+            // 2. Subset Coverage A by bounding box without API -> Coverage B with subset relationship to Coverage A
+            // 3. Subset by time
+            //  3.1. Subset Coverage A by time with API -> Coverage C with API info
+            //  3.2. Subset Coverage C by bounding box without API -> Coverage D with subset relationship to Coverage C
+            // TODO implement that or think of something simpler
+            return coverage.subsetByIndex(constraints)
           }
           
           let url = api.getTimeSubsetUrl(new Date(timeVal))
