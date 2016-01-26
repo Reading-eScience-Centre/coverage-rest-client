@@ -171,7 +171,13 @@ function wrapCoverage (coverage, options) {
           }
           
           if (!useApi) {
-            return coverage.subsetByIndex(constraints).then(subset2 => wrap(subset2, options))
+            return coverage.subsetByIndex(constraints).then(subset2 => {
+              // we preserve LD info which would otherwise have been removed
+              // TODO only preserve API info that we use (the rest is unsafe)
+              //  -> e.g. it would be incorrect to copy API templates based on index-based subsetting
+              subset2.ld = coverage.ld
+              return wrap(subset2, options)
+            })
           }
           
           let url = api.getTimeSubsetUrl(new Date(timeVal))
