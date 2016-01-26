@@ -218,7 +218,7 @@ function wrapCoverage (coverage, options) {
               // again, we DON'T wrap the locally subsetted coverage again, see above
               return subset.subsetByIndex(constraints)
             } else {
-              return wrap(subset, options))
+              return wrap(subset, options)
             }
           })
         })
@@ -245,7 +245,7 @@ function wrapCoverage (coverage, options) {
           if (useApi && ('target' in constraints[xAxis] || 'target' in constraints[yAxis])) {
             useApi = false
           }
-                    
+          
           if (!useApi) {
             // again, we DON'T wrap the locally subsetted coverage again, see above
             return coverage.subsetByValue(constraints)
@@ -263,7 +263,7 @@ function wrapCoverage (coverage, options) {
               // again, we DON'T wrap the locally subsetted coverage again, see above
               return subset.subsetByValue(constraints)
             } else {
-              return wrap(subset, options))
+              return wrap(subset, options)
             }
           })
         })
