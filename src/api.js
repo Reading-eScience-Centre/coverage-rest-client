@@ -137,6 +137,10 @@ export class API {
     }
   }
   
+  get supportsBboxSubsetting () {
+    return this.supportedUrlProps.has(URL_PROPS.subsetBbox)
+  }
+  
   get supportsTimeFiltering () {
     return this.supportedUrlProps.has(URL_PROPS.filterTimeStart) && 
            this.supportedUrlProps.has(URL_PROPS.filterTimeEnd)
@@ -164,6 +168,24 @@ export class API {
     return urltemplate.parse(this.urlTemplate.template).expand({
       [this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)]: iso,
       [this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)]: iso
+    })
+  }
+  
+  /**
+   * @param {array} bbox [minx,miny,maxx,maxy]
+   */
+  getBboxSubsetUrl (bbox) {
+    let bboxStr = bbox.map(v => {
+      // try toString() to avoid trailing zeros from toFixed()
+      let str = v.toString()
+      // if this resulted in scientific notation, use toFixed() instead
+      if (str.indexOf('e') !== -1) {
+        str = v.toFixed(20)
+      }
+      return str
+    }).join(',')
+    return urltemplate.parse(this.urlTemplate.template).expand({
+      [this.supportedUrlProps.get(URL_PROPS.subsetBbox)]: bboxStr
     })
   }
   

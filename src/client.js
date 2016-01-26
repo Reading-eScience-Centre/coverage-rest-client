@@ -139,17 +139,38 @@ class QueryProxy {
   }
 }
 
+function cleanedConstraints (constraints) {
+  let cleanConstraints = shallowcopy(constraints)
+  for (let key of Object.keys(constraints)) {
+    if (constraints[key] === undefined || constraints[key] === null) {
+      delete cleanConstraints[key]
+    }
+  }
+  return cleanConstraints
+}
+
 function wrapCoverage (coverage, options) {
   let load = options.loader
   return API.discover(coverage).then(api => {
     // we implement this ad-hoc as we need it and refactor later
-    if (api.supportsTimeSubsetting) {
+    
+    // TODO wrap subsetByValue
+    
+    if (api.supportsTimeSubsetting || api.supportsBboxSubsetting) {
       // wrap subsetByIndex and use API if only time is subsetted
-      let newcov = shallowcopy(coverage)
+      let newcov = shallowcopy(coverage)     
+      
       newcov.subsetByIndex = constraints => {
         return coverage.loadDomain().then(domain => {    
           let useApi = true
-          if (Object.keys(constraints).filter(k => constraints[k] !== undefined && constraints[k] !== null).length !== 1) {
+          
+          if (!api.supportsTimeSubsetting) {
+            useApi = false
+          }
+          
+          constraints = cleanedConstraints(constraints)
+          
+          if (useApi && Object.keys(constraints).length !== 1) {
             useApi = false
           }
           // TODO don't hardcode the time axis key, search for it with referencing system info
@@ -158,13 +179,13 @@ function wrapCoverage (coverage, options) {
           if (useApi && !(timeAxis in constraints)) {
             useApi = false
           }
-          if (useApi && typeof constraints.t !== 'number') {
+          if (useApi && typeof constraints[timeAxis] !== 'number') {
             // TODO normalize before checking (could be start/stop/step)
             useApi = false
           }
           let timeVal
           if (useApi) {
-            timeVal = domain.axes.get(timeAxis).values[constraints.t]
+            timeVal = domain.axes.get(timeAxis).values[constraints[timeAxis]]
             if (isNaN(Date.parse(timeVal))) {
               useApi = false
             }
@@ -192,12 +213,62 @@ function wrapCoverage (coverage, options) {
           let url = api.getTimeSubsetUrl(new Date(timeVal))
           return load(url).then(subset => {
             // apply remaining subset constraints
-            let newconstraints = shallowcopy(constraints)
-            delete newconstraints[timeAxis]
-            return subset.subsetByIndex(newconstraints).then(subset2 => wrap(subset2, options))
+            delete constraints[timeAxis]
+            if (Object.keys(constraints).length > 0) {
+              // again, we DON'T wrap the locally subsetted coverage again, see above
+              return subset.subsetByIndex(constraints)
+            } else {
+              return wrap(subset, options))
+            }
           })
         })
       }
+      
+      newcov.subsetByValue = constraints => {
+        return coverage.loadDomain().then(domain => {
+          let useApi = true
+          
+          constraints = cleanedConstraints(constraints)
+          
+          // TODO don't hardcode
+          let xAxis = 'x'
+          let yAxis = 'y'
+            
+          if (!(xAxis in constraints) || !(yAxis in constraints)) {
+            useApi = false
+          }
+          
+          if (useApi && (typeof constraints[xAxis] !== 'object' || typeof constraints[yAxis] !== 'object')) {
+            useApi = false
+          }
+          
+          if (useApi && ('target' in constraints[xAxis] || 'target' in constraints[yAxis])) {
+            useApi = false
+          }
+                    
+          if (!useApi) {
+            // again, we DON'T wrap the locally subsetted coverage again, see above
+            return coverage.subsetByValue(constraints)
+          }
+          
+          let bbox = [constraints[xAxis].start, constraints[yAxis].start,
+                      constraints[xAxis].stop, constraints[yAxis].stop]
+          
+          let url = api.getBboxSubsetUrl(bbox)
+          return load(url).then(subset => {
+            // apply remaining subset constraints
+            delete constraints[xAxis]
+            delete constraints[yAxis]
+            if (Object.keys(constraints).length > 0) {
+              // again, we DON'T wrap the locally subsetted coverage again, see above
+              return subset.subsetByValue(constraints)
+            } else {
+              return wrap(subset, options))
+            }
+          })
+        })
+      }
+      
       return newcov
     }
     
