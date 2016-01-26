@@ -175,6 +175,8 @@ function wrapCoverage (coverage, options) {
               // we preserve LD info which would otherwise have been removed
               // TODO only preserve API info that we use (the rest is unsafe)
               //  -> e.g. it would be incorrect to copy API templates based on index-based subsetting
+              // TODO need id for JSON-LD querying, think about this
+              subset2.id = coverage.id
               subset2.ld = coverage.ld
               return wrap(subset2, options)
             })
