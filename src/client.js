@@ -182,7 +182,7 @@ function wrapCoverage (coverage, options) {
             // E.g.:
             // 1. Coverage A with API info
             // 2. Subset Coverage A by bounding box without API -> Coverage B with subset relationship to Coverage A
-            // 3. Subset by time
+            // 3. Subset Coverage B by time
             //  3.1. Subset Coverage A by time with API -> Coverage C with API info
             //  3.2. Subset Coverage C by bounding box without API -> Coverage D with subset relationship to Coverage C
             // TODO implement that or think of something simpler
