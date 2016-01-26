@@ -1,7 +1,6 @@
 import {promises as jsonld} from 'jsonld'
 import urltemplate from 'url-template' 
 
-const HYDRA_CONTEXT = 'http://www.w3.org/ns/hydra/core'
 const PartialCollectionView = 'PartialCollectionView'
 const IriTemplate = 'IriTemplate'
       
@@ -32,7 +31,31 @@ const URL_PROPS = {
 }
 
 const FRAME_CONTEXT = [
-   HYDRA_CONTEXT,
+   // partial copy of http://www.hydra-cg.com/spec/latest/core/core.jsonld
+   {
+     "hydra": "http://www.w3.org/ns/hydra/core#",
+     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+     "xsd": "http://www.w3.org/2001/XMLSchema#",
+     "owl": "http://www.w3.org/2002/07/owl#",
+     "vs": "http://www.w3.org/2003/06/sw-vocab-status/ns#",
+     "dc": "http://purl.org/dc/terms/",
+     "cc": "http://creativecommons.org/ns#",
+     "property": { "@id": "hydra:property", "@type": "@vocab" },
+     "required": "hydra:required",
+     "view": { "@id": "hydra:view", "@type": "@id" },
+     "PartialCollectionView": "hydra:PartialCollectionView",
+     "totalItems": "hydra:totalItems",
+     "first": { "@id": "hydra:first", "@type": "@id" },
+     "last": { "@id": "hydra:last", "@type": "@id" },
+     "next": { "@id": "hydra:next", "@type": "@id" },
+     "previous": { "@id": "hydra:previous", "@type": "@id" },
+     "IriTemplate": "hydra:IriTemplate",
+     "template": "hydra:template",
+     "mapping": "hydra:mapping",
+     "IriTemplateMapping": "hydra:IriTemplateMapping",
+     "variable": "hydra:variable"
+   },
    {
      'id': '@id',
      'type': '@type',
