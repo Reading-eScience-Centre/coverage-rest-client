@@ -36,13 +36,13 @@ function wrapCollection (collection, options) {
       return new QueryProxy(query, newcoll, api, options)
     }
     if (api.isPaged) {
-      let load = this._options.loader
+      let load = options.loader
       let wrapPageLink = url => {
         if (!url) return
         return {
           // FIXME send Prefer header if used in query()
           //  -> would be a lot easier if this was a URL parameter
-          load: () => load(url).then(coll => wrap(coll, this._options))
+          load: () => load(url).then(coll => wrap(coll, options))
         }
       }
       newcoll.paging = {
