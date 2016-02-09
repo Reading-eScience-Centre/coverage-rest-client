@@ -98,6 +98,7 @@ export class API {
     if (ld.view && ld.view.type === PartialCollectionView) {
       this.isPaged = true
       this.paging = ld.view
+      this.paging.total = ld.totalItems
       
       console.log(ld.view)
     }

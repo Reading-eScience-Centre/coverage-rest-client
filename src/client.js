@@ -46,7 +46,7 @@ function wrapCollection (collection, options) {
         }
       }
       newcoll.paging = {
-        total: api.paging.totalItems,
+        total: api.paging.total,
         previous: wrapPageLink(api.paging.previous),
         next: wrapPageLink(api.paging.next),
         first: wrapPageLink(api.paging.first),
