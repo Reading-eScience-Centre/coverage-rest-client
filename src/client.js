@@ -186,6 +186,10 @@ function wrapCoverage (coverage, options) {
           
           constraints = cleanedConstraints(constraints)
           
+          if (!requiresSubsetting(domain, constraints)) {
+            return newcov
+          }
+          
           if (useApi && Object.keys(constraints).length !== 1) {
             useApi = false
           }
@@ -246,6 +250,10 @@ function wrapCoverage (coverage, options) {
           
           constraints = cleanedConstraints(constraints)
           
+          if (!requiresSubsetting(domain, constraints)) {
+            return newcov
+          }
+          
           // TODO don't hardcode
           let xAxis = 'x'
           let yAxis = 'y'
@@ -290,6 +298,21 @@ function wrapCoverage (coverage, options) {
     
     return coverage
   })
+}
+
+/**
+ * Checks whether the constraints may result in an actual
+ * subsetting of the coverage (=true), or whether they are guaranteed
+ * to have no effect (=false). 
+ */
+function requiresSubsetting (domain, constraints) {
+  for (let axisKey of Object.keys(constraints)) {
+    let len = domain.axes.get(axisKey).values.length
+    if (len > 1) {
+      return true
+    }
+  }  
+  return false
 }
 
 function shallowcopy (obj) {
