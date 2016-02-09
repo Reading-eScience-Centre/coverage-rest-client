@@ -75,19 +75,19 @@ class QueryProxy {
   
   filter (spec) {
     this._query.filter(spec)
-    this._filter = mergeInto(spec, this._filter)
+    mergeInto(spec, this._filter)
     return this
   }
   
   subset (spec) {
     this._query.subset(spec)
-    this._subset = mergeInto(spec, this._subset)
+    mergeInto(spec, this._subset)
     return this
   }
   
   embed (spec) {
     this._query.embed(spec)
-    this._embed = mergeInto(spec, this._embed)
+    mergeInto(spec, this._embed)
     return this
   }
   
@@ -98,9 +98,7 @@ class QueryProxy {
     } else {
       // inspect domain of first coverage and assume uniform collection
       if (this._collection.coverages.length > 0) {
-        return this._collection.coverages[0].loadDomain(domain => {
-          this._doExecute(domain)
-        })
+        return this._collection.coverages[0].loadDomain().then(domain => this._doExecute(domain))
       } else {
         return this._query.execute()
       }
