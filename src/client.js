@@ -230,7 +230,7 @@ function wrapCoverage (coverage, options) {
             return coverage.subsetByIndex(constraints)
           }
           
-          let url = api.getTimeSubsetUrl(new Date(timeVal))
+          let url = api.getSubsetUrl({time: new Date(timeVal)})
           return load(url).then(subset => {
             // apply remaining subset constraints
             delete constraints[timeAxis]
@@ -254,9 +254,23 @@ function wrapCoverage (coverage, options) {
             return newcov
           }
           
+          
+          
           // TODO don't hardcode
           let xAxis = 'x'
           let yAxis = 'y'
+          let tAxis = 't'
+            
+          // we split the subsetting constraints into API-compatible and local ones
+          let apiConstraints = {}
+          let localConstraints = {}
+          for (let axis of Object.keys(constraints)) {
+            if (axis === xAxis || axis === yAxis) {
+              // TODO implement
+            } else if (axis === tAxis) {
+              
+            }
+          }
             
           if (!(xAxis in constraints) || !(yAxis in constraints)) {
             useApi = false
@@ -278,7 +292,7 @@ function wrapCoverage (coverage, options) {
           let bbox = [constraints[xAxis].start, constraints[yAxis].start,
                       constraints[xAxis].stop, constraints[yAxis].stop]
           
-          let url = api.getBboxSubsetUrl(bbox)
+          let url = api.getSubsetUrl({bbox})
           return load(url).then(subset => {
             // apply remaining subset constraints
             delete constraints[xAxis]

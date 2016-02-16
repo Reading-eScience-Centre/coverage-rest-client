@@ -163,31 +163,38 @@ export class API {
   
   /**
    * @param {Date} time The single time slice to subset to.
-   */
-  getTimeSubsetUrl (time) {
-    let iso = time.toISOString()
-    return urltemplate.parse(this.urlTemplate.template).expand({
-      [this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)]: iso,
-      [this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)]: iso
-    })
-  }
-  
-  /**
    * @param {array} bbox [minx,miny,maxx,maxy]
    */
-  getBboxSubsetUrl (bbox) {
-    let bboxStr = bbox.map(v => {
-      // try toString() to avoid trailing zeros from toFixed()
-      let str = v.toString()
-      // if this resulted in scientific notation, use toFixed() instead
-      if (str.indexOf('e') !== -1) {
-        str = v.toFixed(20)
+  getSubsetUrl (options) {
+    if (Object.keys(options).length === 0) {
+      throw new Error('options cannot be empty')
+    }
+    let templateVars = {}
+    if (options.time) {
+      if (!this.supportsTimeSubsetting) {
+        throw new Error('Time subsetting not supported!')
       }
-      return str
-    }).join(',')
-    return urltemplate.parse(this.urlTemplate.template).expand({
-      [this.supportedUrlProps.get(URL_PROPS.subsetBbox)]: bboxStr
-    })
+      let iso = options.time.toISOString()
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)] = iso
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)] = iso
+    }
+    if (options.bbox) {
+      if (!this.supportsBboxSubsetting) {
+        throw new Error('BBOX subsetting not supported!')
+      }
+      let bboxStr = options.bbox.map(v => {
+        // try toString() to avoid trailing zeros from toFixed()
+        let str = v.toString()
+        // if this resulted in scientific notation, use toFixed() instead
+        if (str.indexOf('e') !== -1) {
+          str = v.toFixed(20)
+        }
+        return str
+      }).join(',')
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetBbox)] = bboxStr
+    }
+    
+    return urltemplate.parse(this.urlTemplate.template).expand(templateVars)
   }
   
 }
