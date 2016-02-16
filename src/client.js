@@ -134,7 +134,7 @@ class QueryProxy {
     }
     
     let {start, stop} = this._filter[timeAxis]
-    let url = this._api.getTimeFilterUrl(new Date(start), new Date(stop))
+    let url = this._api.getFilterUrl({time: [new Date(start), new Date(stop)]})
     
     let headers = {}
     if (this._embed['range']) {
@@ -253,29 +253,14 @@ function wrapCoverage (coverage, options) {
             return newcov
           }
                     
+          let caps = api.capabilities.subset.byValue
+          // map axis keys to capability concepts
           // TODO don't hardcode
-          let xAxis = 'x'
-          let yAxis = 'y'
-          let tAxis = 't'
-          let apiSupport = new Map([
-            [xAxis, {
-              intersect: api.supportsBboxSubsetting, // start/stop subsetting
-              identity: false, // exact subsetting (e.g. for times useful)
-              target: false, // nearest neighbor subsetting
-              depends: [yAxis]
-            }],
-            [yAxis, {
-              intersect: api.supportsBboxSubsetting,
-              identity: false,
-              target: false,
-              depends: [xAxis]
-            }],
-            [tAxis, {
-              intersect: api.supportsTimeSubsetting,
-              identity: false,
-              target: false
-            }]
-          ])
+          let axisMap = {
+            x: 'x',
+            y: 'y',
+            t: 'time'
+          }
           
           /* If the API does not support target-based subsetting, then this can be emulated
            * via intersection-based subsetting by inspecting the domain locally first
@@ -291,12 +276,12 @@ function wrapCoverage (coverage, options) {
             let useApi = false
             let constraint = constraints[axis]
             
-            if (!apiSupport.has(axis)) {
+            if (!caps[axisMap[axis]]) {
               // leave useApi = false
             } else if (typeof constraint !== 'object') {
-              useApi = apiSupport.get(axis).identity
+              useApi = caps[axisMap[axis]].identity
             } else if ('target' in constraint) {
-              if (apiSupport[axis].target) {
+              if (caps[axisMap[axis]].target) {
                 useApi = true
               } else if (apiSupport.get(axis).intersect) {
                 // emulate target via intersect

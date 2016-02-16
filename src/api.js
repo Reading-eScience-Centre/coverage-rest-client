@@ -138,6 +138,10 @@ export class API {
     }
   }
   
+  get supportsBboxFiltering () {
+    return this.supportedUrlProps.has(URL_PROPS.filterBbox)
+  }
+  
   get supportsBboxSubsetting () {
     return this.supportedUrlProps.has(URL_PROPS.subsetBbox)
   }
@@ -152,50 +156,186 @@ export class API {
            this.supportedUrlProps.has(URL_PROPS.subsetTimeEnd)
   }
   
-  getTimeFilterUrl (timeStart, timeEnd) {
-    let isoStart = timeStart.toISOString()
-    let isoEnd = timeEnd.toISOString()
-    return urltemplate.parse(this.urlTemplate.template).expand({
-      [this.supportedUrlProps.get(URL_PROPS.filterTimeStart)]: isoStart,
-      [this.supportedUrlProps.get(URL_PROPS.filterTimeEnd)]: isoEnd
-    })
+  get supportsVerticalFiltering () {
+    return this.supportedUrlProps.has(URL_PROPS.filterVerticalStart) && 
+           this.supportedUrlProps.has(URL_PROPS.filterVerticalEnd)    
+  }
+  
+  get supportsVerticalSubsetting () {
+    return this.supportedUrlProps.has(URL_PROPS.subsetVerticalStart) && 
+           this.supportedUrlProps.has(URL_PROPS.subsetVerticalEnd)
+  }
+  
+  get supportsVerticalTargetSubsetting () {
+    return this.supportedUrlProps.has(URL_PROPS.subsetVerticalTarget)
+  }
+  
+  get supportsIndexSubsetting () {
+    return this.supportedUrlProps.has(URL_PROPS.subsetIndex)
+  }
+  
+  _createCapabilities () {
+    let caps = {
+      filter: {},
+      subset: {
+        byValue: {}
+      }
+    }
+    let intersect = {
+      intersect: true
+    }
+    if (this.supportsBboxFiltering) {
+      // 'x' is not the axis name, it just represents the x-axis in a horizontal CRS
+      caps.filter.x = {
+        intersect: true,
+        dependency: ['y']
+      }
+      caps.filter.y = {
+        intersect: true,
+        dependency: ['x']
+      }
+    }
+    if (this.supportsTimeFiltering) {
+      caps.filter.time = intersect
+    }
+    if (this.supportsVerticalFiltering) {
+      caps.filter.vertical = intersect
+    }
+    if (this.supportsBboxSubsetting) {
+      caps.subset.byValue.x = {
+        intersect: true,
+        dependency: ['y']
+      }
+      caps.subset.byValue.y = {
+        intersect: true,
+        dependency: ['x']
+      }
+    }
+    if (this.supportsTimeSubsetting) {
+      caps.subset.byValue.time = intersect
+    }
+    if (this.supportsVerticalSubsetting) {
+      caps.subset.byValue.vertical = intersect
+    }
+    if (this.supportsVerticalTargetSubsetting) {
+      if (!caps.subset.byValue.vertical) {
+        caps.subset.byValue.vertical = {}
+      }
+      caps.subset.byValue.vertical.target = true
+    }
+    if (this.supportsPreferHeaders) {
+      caps.embed = {
+        domain: true,
+        range: true
+      }
+    }
+    this.capabilities = caps
   }
   
   /**
    * @param {Array<Date>} time [start, stop]
-   * @param {Array<number>} bbox [minx,miny,maxx,maxy]
+   * @param {Array<number>} vertical [start, stop]
+   * @param {Array<number>} x [minx,maxx]
+   * @param {Array<number>} y [miny,maxy]
+   */
+  getFilterUrl (options) {
+    if (Object.keys(options).length === 0) {
+      throw new Error('options cannot be empty')
+    }
+    let caps = this.capabilities.filter
+    let templateVars = {}
+    if (options.time) {
+      if (!caps.time) {
+        throw new Error('Time filtering not supported!')
+      }
+      let isoStart = options.time[0].toISOString()
+      let isoEnd = options.time[1].toISOString()
+      templateVars[this.supportedUrlProps.get(URL_PROPS.filterTimeStart)] = isoStart
+      templateVars[this.supportedUrlProps.get(URL_PROPS.filterTimeEnd)] = isoEnd
+      delete options.time
+    }
+    if (options.vertical) {
+      if (!caps.vertical) {
+        throw new Error('Vertical filtering not supported!')
+      }
+      let start = getNumberString(options.vertical[0])
+      let end = getNumberString(options.vertical[1])
+      templateVars[this.supportedUrlProps.get(URL_PROPS.filterVerticalStart)] = start
+      templateVars[this.supportedUrlProps.get(URL_PROPS.filterVerticalEnd)] = end
+      delete options.vertical
+    }
+    if (options.x) {
+      if (!caps.x) {
+        throw new Error('BBOX filtering not supported!')
+      }
+      let bboxStr = getBboxString([options.x[0], options.y[0], options.x[1], options.y[1]])
+      templateVars[this.supportedUrlProps.get(URL_PROPS.filterBbox)] = bboxStr
+      delete options.x
+      delete options.y
+    }
+    checkEmpty(options, 'Unrecognized filter options')
+
+    return urltemplate.parse(this.urlTemplate.template).expand(templateVars)
+  }
+  
+  /**
+   * TODO add index-based subsetting
+   * 
+   * @param {Array<Date>} time [start, stop]
+   * @param {Array<number>} x [minx,maxx]
+   * @param {Array<number>} y [miny,maxy]
    */
   getSubsetUrl (options) {
     if (Object.keys(options).length === 0) {
       throw new Error('options cannot be empty')
     }
+    let caps = this.capabilities.subset
     let templateVars = {}
     if (options.time) {
       if (!this.supportsTimeSubsetting) {
         throw new Error('Time subsetting not supported!')
       }
-      let startiso = options.time[0].toISOString()
-      let stopiso = options.time[1].toISOString()
-      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)] = startiso
-      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)] = stopiso
+      let isoStart = options.time[0].toISOString()
+      let isoEnd = options.time[1].toISOString()
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)] = isoStart
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)] = isoEnd
+      delete options.time
     }
-    if (options.bbox) {
+    if (options.x) {
       if (!this.supportsBboxSubsetting) {
         throw new Error('BBOX subsetting not supported!')
       }
-      let bboxStr = options.bbox.map(v => {
-        // try toString() to avoid trailing zeros from toFixed()
-        let str = v.toString()
-        // if this resulted in scientific notation, use toFixed() instead
-        if (str.indexOf('e') !== -1) {
-          str = v.toFixed(20)
-        }
-        return str
-      }).join(',')
+      let bboxStr = getBboxString([options.x[0], options.y[0], options.x[1], options.y[1]])
       templateVars[this.supportedUrlProps.get(URL_PROPS.subsetBbox)] = bboxStr
+      delete options.x
+      delete options.y
     }
+    checkEmpty(options, 'Unrecognized subset options')
     
     return urltemplate.parse(this.urlTemplate.template).expand(templateVars)
   }
   
+}
+
+function checkEmpty (obj, err) {
+  if (Object.keys(obj).length > 0) {
+    throw new Error(err)
+  }
+}
+
+function getBboxString (bbox) {
+  return bbox.map(getNumberString).join(',')
+}
+
+/**
+ * Converts a number to a decimal string in non-scientific notation.
+ */
+function getNumberString (num) {
+  // try toString() to avoid trailing zeros from toFixed()
+  let str = num.toString()
+  // if this resulted in scientific notation, use toFixed() instead
+  if (str.indexOf('e') !== -1) {
+    str = num.toFixed(20)
+  }
+  return str
 }
