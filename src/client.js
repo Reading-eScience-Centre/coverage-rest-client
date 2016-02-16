@@ -1,4 +1,5 @@
 import * as API from './api.js'
+import * as arrays from './arrays.js'
 
 // Note: We currently can't handle Hydra data in non-default graphs due to lack of support in JSON-LD framing.
 
@@ -246,58 +247,113 @@ function wrapCoverage (coverage, options) {
       
       newcov.subsetByValue = constraints => {
         return coverage.loadDomain().then(domain => {
-          let useApi = true
-          
           constraints = cleanedConstraints(constraints)
           
           if (!requiresSubsetting(domain, constraints)) {
             return newcov
           }
-          
-          
-          
+                    
           // TODO don't hardcode
           let xAxis = 'x'
           let yAxis = 'y'
           let tAxis = 't'
+          let apiSupport = new Map([
+            [xAxis, {
+              intersect: api.supportsBboxSubsetting, // start/stop subsetting
+              identity: false, // exact subsetting (e.g. for times useful)
+              target: false, // nearest neighbor subsetting
+              depends: [yAxis]
+            }],
+            [yAxis, {
+              intersect: api.supportsBboxSubsetting,
+              identity: false,
+              target: false,
+              depends: [xAxis]
+            }],
+            [tAxis, {
+              intersect: api.supportsTimeSubsetting,
+              identity: false,
+              target: false
+            }]
+          ])
+          
+          /* If the API does not support target-based subsetting, then this can be emulated
+           * via intersection-based subsetting by inspecting the domain locally first
+           * and then subsetting with equal start/stop subsetting.
+           * 
+           * Identity-based subsetting can in general not be emulated by the other methods.
+           */
             
           // we split the subsetting constraints into API-compatible and local ones
-          let apiConstraints = {}
-          let localConstraints = {}
+          let apiConstraints = new Map()
+          let localConstraints = new Map()
           for (let axis of Object.keys(constraints)) {
-            if (axis === xAxis || axis === yAxis) {
-              // TODO implement
-            } else if (axis === tAxis) {
-              
+            let useApi = false
+            let constraint = constraints[axis]
+            
+            if (!apiSupport.has(axis)) {
+              // leave useApi = false
+            } else if (typeof constraint !== 'object') {
+              useApi = apiSupport.get(axis).identity
+            } else if ('target' in constraint) {
+              if (apiSupport[axis].target) {
+                useApi = true
+              } else if (apiSupport.get(axis).intersect) {
+                // emulate target via intersect
+                let idx = getClosestIndex(domain, axis, constraint.target)
+                let val = domain.axes.get(axis).values[idx]
+                constraint = {start: val, stop: val}
+                useApi = true
+              }
+            } else {
+              // start / stop
+              useApi = apiSupport.get(axis).intersect
+            }
+                         
+            if (useApi) {
+              apiConstraints.set(axis, constraint)
+            } else {
+              localConstraints.set(axis, constraint)
             }
           }
-            
-          if (!(xAxis in constraints) || !(yAxis in constraints)) {
-            useApi = false
+          
+          // check if all API dependencies between axes are met
+          // this is mainly for bounding box which needs both x and y
+          // if not, move to locally applied constraints
+          for (let [axis, constraint] of new Map(apiConstraints)) {
+            let depends = apiSupport.get(axis).depends
+            if (depends && depends.some(ax => !apiConstraints.has(ax))) {
+              apiConstraints.delete(axis)
+              localConstraints.set(axis, constraint)
+            }
           }
           
-          if (useApi && (typeof constraints[xAxis] !== 'object' || typeof constraints[yAxis] !== 'object')) {
-            useApi = false
-          }
-          
-          if (useApi && ('target' in constraints[xAxis] || 'target' in constraints[yAxis])) {
-            useApi = false
-          }
-          
-          if (!useApi) {
+          if (apiConstraints.size === 0) {
             // again, we DON'T wrap the locally subsetted coverage again, see above
             return coverage.subsetByValue(constraints)
           }
           
-          let bbox = [constraints[xAxis].start, constraints[yAxis].start,
-                      constraints[xAxis].stop, constraints[yAxis].stop]
+          // TODO avoid hard-coding this
+          let options = {}
+          if (apiConstraints.has(xAxis)) {
+            let x = apiConstraints.get(xAxis)
+            let y = apiConstraints.get(yAxis)
+            options.bbox = [x.start, y.start, x.stop, y.stop]
+          }
+          if (apiConstraints.has(tAxis)) {
+            let t = apiConstraints.get(tAxis)
+            options.time = [t.start, t.stop]
+          }
+
+          let url = api.getSubsetUrl(options)
           
-          let url = api.getSubsetUrl({bbox})
           return load(url).then(subset => {
             // apply remaining subset constraints
-            delete constraints[xAxis]
-            delete constraints[yAxis]
-            if (Object.keys(constraints).length > 0) {
+            if (localConstraints.size > 0) {
+              let constraints = {}
+              for (let [axis, constraint] of localConstraints) {
+                constraints[axis] = constraint 
+              }
               // again, we DON'T wrap the locally subsetted coverage again, see above
               return subset.subsetByValue(constraints)
             } else {
@@ -312,6 +368,17 @@ function wrapCoverage (coverage, options) {
     
     return coverage
   })
+}
+
+function getClosestIndex (domain, axis, val) {
+  let vals = domain.axes.get(axis).values
+  if (axis === 't') {
+    // convert to unix timestamps as we need numbers
+    val = val.getTime()
+    vals = vals.map(t => new Date(t).getTime())
+  }
+  let idx = arrays.indexOfNearest(vals, val)
+  return idx
 }
 
 /**

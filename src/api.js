@@ -162,8 +162,8 @@ export class API {
   }
   
   /**
-   * @param {Date} time The single time slice to subset to.
-   * @param {array} bbox [minx,miny,maxx,maxy]
+   * @param {Array<Date>} time [start, stop]
+   * @param {Array<number>} bbox [minx,miny,maxx,maxy]
    */
   getSubsetUrl (options) {
     if (Object.keys(options).length === 0) {
@@ -174,9 +174,10 @@ export class API {
       if (!this.supportsTimeSubsetting) {
         throw new Error('Time subsetting not supported!')
       }
-      let iso = options.time.toISOString()
-      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)] = iso
-      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)] = iso
+      let startiso = options.time[0].toISOString()
+      let stopiso = options.time[1].toISOString()
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)] = startiso
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)] = stopiso
     }
     if (options.bbox) {
       if (!this.supportsBboxSubsetting) {
