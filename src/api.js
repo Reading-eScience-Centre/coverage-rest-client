@@ -177,51 +177,61 @@ export class API {
   _createCapabilities () {
     let caps = {
       filter: {},
-      subset: {
-        byValue: {}
-      }
+      subset: {}
     }
-    let intersect = {
-      intersect: true
+    let startstop = {
+      start: true,
+      stop: true
     }
     if (this.supportsBboxFiltering) {
       // 'x' is not the axis name, it just represents the x-axis in a horizontal CRS
       caps.filter.x = {
-        intersect: true,
+        start: true,
+        stop: true,
         dependency: ['y']
       }
       caps.filter.y = {
-        intersect: true,
+        start: true,
+        stop: true,
         dependency: ['x']
       }
     }
     if (this.supportsTimeFiltering) {
-      caps.filter.time = intersect
+      caps.filter.time = startstop
     }
     if (this.supportsVerticalFiltering) {
-      caps.filter.vertical = intersect
+      caps.filter.vertical = startstop
     }
     if (this.supportsBboxSubsetting) {
-      caps.subset.byValue.x = {
-        intersect: true,
+      caps.subset.x = {
+        start: true,
+        stop: true,
         dependency: ['y']
       }
-      caps.subset.byValue.y = {
-        intersect: true,
+      caps.subset.y = {
+        start: true,
+        stop: true,
         dependency: ['x']
       }
     }
     if (this.supportsTimeSubsetting) {
-      caps.subset.byValue.time = intersect
+      caps.subset.time = startstop
     }
     if (this.supportsVerticalSubsetting) {
-      caps.subset.byValue.vertical = intersect
+      caps.subset.vertical = startstop
     }
     if (this.supportsVerticalTargetSubsetting) {
-      if (!caps.subset.byValue.vertical) {
-        caps.subset.byValue.vertical = {}
+      if (!caps.subset.vertical) {
+        caps.subset.vertical = {}
       }
-      caps.subset.byValue.vertical.target = true
+      caps.subset.vertical.target = true
+    }
+    if (this.supportsIndexSubsetting) {
+      caps.subset.index = {
+        start: true,
+        stop: true,
+        step: true
+      }
     }
     if (this.supportsPreferHeaders) {
       caps.embed = {
@@ -233,42 +243,42 @@ export class API {
   }
   
   /**
-   * @param {Array<Date>} time [start, stop]
-   * @param {Array<number>} vertical [start, stop]
-   * @param {Array<number>} x [minx,maxx]
-   * @param {Array<number>} y [miny,maxy]
+   * Option keys: time, x, y, vertical
+   * 
+   * Each value is one of (check this.capabilities to see which ones are supported!):
+   * 
+   * {start, stop} // intersect match
    */
   getFilterUrl (options) {
     if (Object.keys(options).length === 0) {
       throw new Error('options cannot be empty')
     }
-    let caps = this.capabilities.filter
     let templateVars = {}
     if (options.time) {
-      if (!caps.time) {
+      if (!this.supportsTimeFiltering) {
         throw new Error('Time filtering not supported!')
       }
-      let isoStart = options.time[0].toISOString()
-      let isoEnd = options.time[1].toISOString()
+      let isoStart = options.time.start
+      let isoEnd = options.time.stop
       templateVars[this.supportedUrlProps.get(URL_PROPS.filterTimeStart)] = isoStart
       templateVars[this.supportedUrlProps.get(URL_PROPS.filterTimeEnd)] = isoEnd
       delete options.time
     }
     if (options.vertical) {
-      if (!caps.vertical) {
+      if (!this.supportsVerticalFiltering) {
         throw new Error('Vertical filtering not supported!')
       }
-      let start = getNumberString(options.vertical[0])
-      let end = getNumberString(options.vertical[1])
+      let start = getNumberString(options.vertical.start)
+      let end = getNumberString(options.vertical.stop)
       templateVars[this.supportedUrlProps.get(URL_PROPS.filterVerticalStart)] = start
       templateVars[this.supportedUrlProps.get(URL_PROPS.filterVerticalEnd)] = end
       delete options.vertical
     }
     if (options.x) {
-      if (!caps.x) {
+      if (!this.supportsBboxFiltering) {
         throw new Error('BBOX filtering not supported!')
       }
-      let bboxStr = getBboxString([options.x[0], options.y[0], options.x[1], options.y[1]])
+      let bboxStr = getBboxString([options.x.start, options.y.start, options.x.stop, options.y.stop])
       templateVars[this.supportedUrlProps.get(URL_PROPS.filterBbox)] = bboxStr
       delete options.x
       delete options.y
@@ -279,24 +289,31 @@ export class API {
   }
   
   /**
-   * TODO add index-based subsetting
+   * Option keys: time, x, y, vertical, index
    * 
-   * @param {Array<Date>} time [start, stop]
-   * @param {Array<number>} x [minx,maxx]
-   * @param {Array<number>} y [miny,maxy]
+   * Each value is one of (check this.capabilities to see which ones are supported!):
+   * 
+   * For time, x, y, vertical:
+   * ISO string // exact match (time)
+   * number // exact match (x, y, vertical) <- typically not supported by API
+   * {start, stop} // intersect match
+   * {target} // nearest neighbor match
+   * 
+   * For index:
+   * {<axisName>: integer, ...}
+   * {<axisName>: {start,stop[,step]}, ...}
    */
   getSubsetUrl (options) {
     if (Object.keys(options).length === 0) {
       throw new Error('options cannot be empty')
     }
-    let caps = this.capabilities.subset
     let templateVars = {}
     if (options.time) {
       if (!this.supportsTimeSubsetting) {
         throw new Error('Time subsetting not supported!')
       }
-      let isoStart = options.time[0].toISOString()
-      let isoEnd = options.time[1].toISOString()
+      let isoStart = options.time.start
+      let isoEnd = options.time.stop
       templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeStart)] = isoStart
       templateVars[this.supportedUrlProps.get(URL_PROPS.subsetTimeEnd)] = isoEnd
       delete options.time
@@ -309,6 +326,35 @@ export class API {
       templateVars[this.supportedUrlProps.get(URL_PROPS.subsetBbox)] = bboxStr
       delete options.x
       delete options.y
+    }
+    if (options.vertical) {
+      if (options.vertical.target) {
+        if (!this.supportsVerticalTargetSubsetting) {
+          throw new Error('vertical target subsetting not supported!')
+        }
+        let target = getNumberString(options.vertical.target)
+        templateVars[this.supportedUrlProps.get(URL_PROPS.subsetVerticalTarget)] = target
+      }
+      if (options.vertical.start) {
+        if (!this.supportsVerticalSubsetting) {
+          throw new Error('vertical subsetting not supported!')
+        }
+        let start = getNumberString(options.vertical.start)
+        let end = getNumberString(options.vertical.stop)
+        templateVars[this.supportedUrlProps.get(URL_PROPS.subsetVerticalStart)] = start
+        templateVars[this.supportedUrlProps.get(URL_PROPS.subsetVerticalEnd)] = end 
+      }
+      delete options.vertical
+    }
+    if (options.index) {
+      if (!this.supportsIndexSubsetting) {
+        throw new Error('index subsetting not supported!')
+      }
+      let strings = []
+      for (let axis of Object.keys(options.index)) {
+        strings.push(getIndexSubsetString(axis, options.index[axis]))
+      }
+      templateVars[this.supportedUrlProps.get(URL_PROPS.subsetIndex)] = strings
     }
     checkEmpty(options, 'Unrecognized subset options')
     
@@ -339,3 +385,19 @@ function getNumberString (num) {
   }
   return str
 }
+
+function getIndexSubsetString (axis, spec) {
+  let slice
+  if (typeof spec === 'number') {
+    slice = getNumberString(spec)
+  } else if (spec.start === spec.stop && (!spec.step || spec.step === 1)) {
+    slice = getNumberString(spec.start)
+  } else {
+    slice = getNumberString(spec.start) + ':' + getNumberString(stop)
+    if (spec.step) {
+      slice += ':' + getNumberString(spec.step)
+    }
+  }
+  return axis + '[' + slice + ']'
+}
+
