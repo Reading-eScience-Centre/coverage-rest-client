@@ -128,16 +128,6 @@ export class API {
     }
   }
   
-  getIncludeDomainAndRangeHeaders () {
-    if (!this.supportsPreferHeaders) {
-      return {}
-    }
-    return {
-      Prefer: 'return=representation; ' + 
-              'include="' + Domain + ' ' + Range + '"'
-    }
-  }
-  
   get supportsBboxFiltering () {
     return this.supportedUrlProps.has(URL_PROPS.filterBbox)
   }
@@ -243,16 +233,15 @@ export class API {
   }
   
   /**
-   * Option keys: time, x, y, vertical
+   * Option keys: time, x, y, vertical, embed
    * 
-   * Each value is one of (check this.capabilities to see which ones are supported!):
+   * Each value except for 'embed' is one of (check this.capabilities to see which ones are supported!):
    * 
    * {start, stop} // intersect match
+   * 
+   * 'embed' is an object {domain: true, range: true} where both members are optional.
    */
-  getFilterUrl (options) {
-    if (Object.keys(options).length === 0) {
-      throw new Error('options cannot be empty')
-    }
+  _getFilterTemplateVars (options) {
     let templateVars = {}
     if (options.time) {
       if (!this.supportsTimeFiltering) {
@@ -285,7 +274,7 @@ export class API {
     }
     checkEmpty(options, 'Unrecognized filter options')
 
-    return urltemplate.parse(this.urlTemplate.template).expand(templateVars)
+    return templateVars
   }
   
   /**
@@ -303,10 +292,7 @@ export class API {
    * {<axisName>: integer, ...}
    * {<axisName>: {start,stop[,step]}, ...}
    */
-  getSubsetUrl (options) {
-    if (Object.keys(options).length === 0) {
-      throw new Error('options cannot be empty')
-    }
+  _getSubsetTemplateVars (options = {}) {
     let templateVars = {}
     if (options.time) {
       if (!this.supportsTimeSubsetting) {
@@ -358,7 +344,38 @@ export class API {
     }
     checkEmpty(options, 'Unrecognized subset options')
     
-    return urltemplate.parse(this.urlTemplate.template).expand(templateVars)
+    return templateVars
+  }
+  
+  _getIncludeDomainAndRangeHeaders (options = {}) {
+    if (!this.supportsPreferHeaders) {
+      return {}
+    }
+    let uris = []
+    if (options.domain) {
+      uris.push(Domain)
+    }
+    if (options.range) {
+      uris.push(Range)
+    }
+    return {
+      Prefer: 'return=representation; ' + 
+              'include="' + uris.join(' ') + '"'
+    }
+  }
+  
+  getUrlAndHeaders (options) {
+    let subsetTemplateVars = this._getSubsetTemplateVars(options.subset)
+    let filterTemplateVars = this._getFilterTemplateVars(options.filter)
+    
+    let templateVars = subsetTemplateVars
+    for (let key in filterTemplateVars) {
+      templateVars[key] = filterTemplateVars[key]
+    }
+    
+    let url = urltemplate.parse(this.urlTemplate.template).expand(templateVars)
+    let headers = this._getIncludeDomainAndRangeHeaders(options.embed)
+    return {url, headers}
   }
   
 }

@@ -13,9 +13,9 @@ import * as arrays from './arrays.js'
  *   The function to use for loading coverage data from a URL.
  *   It is called as loader(url, headers) where headers is an optional object
  *   of HTTP headers to send.
- *   It must return a Promise succeeding with a Coverage API object.
+ *   It must return a Promise succeeding with a Coverage Data API object.
  *   
- * @returns {object} The wrapped Coverage API object.
+ * @returns {object} The wrapped Coverage Data API object.
  */
 export function wrap (data, options) {
   if (typeof options.loader !== 'function') {
@@ -41,9 +41,7 @@ function wrapCollection (collection, options) {
       let wrapPageLink = url => {
         if (!url) return
         return {
-          // FIXME send Prefer header if used in query()
-          //  -> would be a lot easier if this was a URL parameter
-          load: () => load(url).then(coll => wrap(coll, options))
+          load: () => load(url, options.headers).then(coll => wrap(coll, options))
         }
       }
       newcoll.paging = {
@@ -108,52 +106,87 @@ class QueryProxy {
   
   _doExecute (domainTemplate) {
     let load = this._options.loader
-    let useApi = true
     
-    // we implement this ad-hoc as we need it and refactor later
-    // currently only time filtering support
+    let filterCaps = this._api.capabilities.filter
+    let subsetCaps = this._api.capabilities.subset
+    let embedCaps = this._api.capabilities.embed
+    let axisMap = getAxisConcepts(domainTemplate)
     
-    // TODO rewrite this
+    // split constraints into API and locally applied ones
+    let apiConstraints = {
+      filter: {},
+      subset: {},
+      embed: {}
+    }
+
+    let localFilterConstraints = {} // axis name -> spec
+    let localSubsetConstraints = {} // axis name -> spec
     
-    // filter by time
-    if (!this._api.supportsTimeFiltering) {
-      useApi = false
+    // embedding
+    // makes only sense when using the API, hence there is no local fall-back
+    if (embedCaps.domain && embedCaps.range) {
+      apiConstraints.embed = this._embed
     }
     
-    // TODO don't hardcode the time axis key, search for it with referencing system info
-    //  -> this is not standardized in the Coverage JS API spec yet
-    let timeAxis = 't'
-    if (useApi && !(timeAxis in this._filter)) {
-      useApi = false
+    // filtering
+    for (let axis of Object.keys(this._filter)) {
+      let constraint = this._filter[axis]      
+      let cap = filterCaps[axisMap[axis]]
+      if (cap && cap.start && cap.stop) {
+        apiConstraints.filter[axisMap[axis]] = constraint
+      } else {
+        localFilterConstraints[axis] = constraint
+      }
+    }
+
+    // subsetting
+    for (let axis of Object.keys(this._subset)) {
+      let constraint = this._subset[axis]
+      let cap = subsetCaps[axisMap[axis]]
+      let useApi = false
+      
+      if (!cap) {
+        // leave useApi = false
+      } else if (typeof constraint !== 'object' && cap.identity) {
+        useApi = true
+      } else if ('target' in constraint && cap.target) {
+        useApi = true
+      } else if ('start' in constraint && 'stop' in constraint && cap.start && cap.stop) {
+        useApi = true
+      }
+      
+      if (useApi) {
+        apiConstraints.subset[axisMap[axis]] = constraint
+      } else {
+        localSubsetConstraints[axis] = constraint
+      }
     }
     
-    if (useApi && !this._filter[timeAxis]) {
-      useApi = false
-    }
+    toLocalConstraintsIfDependencyMissing(apiConstraints.filter, localFilterConstraints, filterCaps, axisMap)
+    toLocalConstraintsIfDependencyMissing(apiConstraints.subset, localSubsetConstraints, subsetCaps, axisMap)
     
-    if (!useApi) {
+    // TODO if only embed is requested, check if this is already applied and return the original collection in that case
+    if (Object.keys(apiConstraints.filter).length === 0 && 
+        Object.keys(apiConstraints.subset).length === 0 &&
+        Object.keys(apiConstraints.embed).length === 0) {
       return this._query.execute()
     }
     
-    let {start, stop} = this._filter[timeAxis]
-    let url = this._api.getFilterUrl({time: [new Date(start), new Date(stop)]})
-    
-    let headers = {}
-    if (this._embed['range']) {
-      // TODO this should be applied independent of whether the time filter
-      //  is applied
-      mergeInto(this._api.getIncludeDomainAndRangeHeaders(), headers)
-    }
-    
-    return load(url, headers).then(filtered => {
+    let {url, headers} = this._api.getUrlAndHeaders(apiConstraints)
+        
+    return load(url, headers).then(resultCollection => {
       // apply remaining query parts
-      let newfilter = shallowcopy(this._filter)
-      delete newfilter[timeAxis]
-      return filtered.query()
-        .filter(newfilter)
-        .subset(this._subset)
-        .embed(this._embed)
-        .execute().then(newcoll => wrap(newcoll, this._options))
+      if (Object.keys(localSubsetConstraints).length > 0 || Object.keys(localFilterConstraints).length > 0) {
+        // the locally queried collection is NOT wrapped! see comment for coverage subsetting below
+        return resultCollection.query()
+          .filter(localFilterConstraints)
+          .subset(localSubsetConstraints)
+          .execute()
+      } else {
+        // carry-over headers for paging
+        let options = getOptionsWithHeaders(this._options, headers)
+        return wrap(resultCollection, options)
+      }
     })
   }
 }
@@ -195,11 +228,12 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
         for (let axis of Object.keys(constraints)) {
           let useApi = false
           let constraint = constraints[axis]
+          let cap = caps[axisMap[axis]]
           
-          if (!caps[axisMap[axis]]) {
+          if (!cap) {
             // leave useApi = false
           } else if (typeof constraint !== 'object') {
-            if (caps[axisMap[axis]].start && caps[axisMap[axis]].stop) {
+            if (cap.start && cap.stop) {
               // emulate identity match via start/stop
               let val = domain.axes.get(axis).values[constraint]
               constraint = {start: val, stop: val}
@@ -207,7 +241,7 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
             }
           } else if (!constraint.step) {
             // start / stop
-            if (caps[axisMap[axis]].start && caps[axisMap[axis]].stop) {
+            if (cap.start && cap.stop) {
               let start = domain.axes.get(axis).values[constraint.start]
               let stop = domain.axes.get(axis).values[constraint.stop]
               constraint = {start, stop}
@@ -244,8 +278,8 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
         return coverage.subsetByIndex(constraints)
       }
       
-      let url = api.getSubsetUrl(apiConstraints)
-      return wrapOptions.loader(url).then(subset => {
+      let {url, headers} = api.getUrlAndHeaders({subset: apiConstraints})
+      return wrapOptions.loader(url, headers).then(subset => {
         // apply remaining subset constraints
         if (Object.keys(localConstraints).length > 0) {
           // again, we DON'T wrap the locally subsetted coverage again, see above
@@ -289,15 +323,15 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
       for (let axis of Object.keys(constraints)) {
         let useApi = false
         let constraint = constraints[axis]
-        
+        let cap = caps[axisMap[axis]]
         let isTimeString = axisMap[axis] === 'time'
         
-        if (!caps[axisMap[axis]]) {
+        if (!cap) {
           // leave useApi = false
         } else if (typeof constraint !== 'object') {
-          if (caps[axisMap[axis]].identity) {
+          if (cap.identity) {
             useApi = true
-          } else if (caps[axisMap[axis]].start && caps[axisMap[axis]].stop) {
+          } else if (cap.start && cap.stop) {
             // emulate identity match via start/stop if we find a matching axis value
             let idx = getClosestIndex(domain, axis, constraint.target, isTimeString)
             let val = domain.axes.get(axis).values[idx]
@@ -312,9 +346,9 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             }
           }
         } else if ('target' in constraint) {
-          if (caps[axisMap[axis]].target) {
+          if (cap.target) {
             useApi = true
-          } else if (caps[axisMap[axis]].start && caps[axisMap[axis]].stop) {
+          } else if (cap.start && cap.stop) {
             // emulate target via start/stop
             let idx = getClosestIndex(domain, axis, constraint.target, isTimeString)
             let val = domain.axes.get(axis).values[idx]
@@ -323,7 +357,7 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
           }
         } else {
           // start / stop
-          useApi = caps[axisMap[axis]].start && caps[axisMap[axis]].stop
+          useApi = cap.start && cap.stop
         }
                      
         if (useApi) {
@@ -340,8 +374,8 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
         return coverage.subsetByValue(constraints)
       }
       
-      let url = api.getSubsetUrl(apiConstraints)        
-      return wrapOptions.loader(url).then(subset => {
+      let {url, headers} = api.getUrlAndHeaders({subset: apiConstraints})        
+      return wrapOptions.loader(url, headers).then(subset => {
         // apply remaining subset constraints
         if (Object.keys(localConstraints).length > 0) {
           // again, we DON'T wrap the locally subsetted coverage again, see above
@@ -355,16 +389,46 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
 }
 
 /**
- * Returns an object that maps axis keys to API concept names.
+ * Returns an object that maps axis keys to API concept names by
+ * interpreting domain referencing info.
+ * An axis with unknown concept is mapped to undefined.
  */
 function getAxisConcepts (domain) {
-  // TODO don't hard-code, but derive from referencing info of domain
-  return {
-    x: 'x',
-    y: 'y',
-    z: 'vertical',
-    t: 'time'
-  }
+  let axisConcepts = {}
+  let referencing = domain.referencing
+  for (let axis of domain.axes.keys()) {
+    let concept = undefined
+    
+    let ref = referencing.filter(ref => ref.dimensions.indexOf(axis) !== -1)
+    if (ref.length === 1) {
+      let {dimensions, system} = ref[0]
+      
+      if (system.type === 'TemporalRS') {
+        // The assumption is that if the API offers filtering/subsetting by time,
+        // then this happens in the same concrete temporal system (calendar etc.).
+        // Also, it is assumed that there is only one time axis.
+        // TODO how to locate the "main" time axis if there are multiple?
+        //      see https://github.com/Reading-eScience-Centre/coveragejson/issues/45
+        concept = 'time'
+      } else if (system.type === 'VerticalCRS') {
+        concept = 'vertical'
+      } else if (system.type === 'GeodeticCRS' || system.type === 'ProjectedCRS') {
+        // a geodetic crs can be x,y or x,y,z
+        // a projected crs is x,y
+        let idx = dimensions.indexOf(axis)
+        if (idx === 0) {
+          concept = 'x'
+        } else if (idx === 1) {
+          concept = 'y'
+        } else if (idx === 2) {
+          concept = 'vertical'
+        }
+      }
+    }
+    
+    axisConcepts[axis] = concept
+  }  
+  return axisConcepts
 }
 
 /**
@@ -418,6 +482,15 @@ function cleanedConstraints (constraints) {
     }
   }
   return cleanConstraints
+}
+
+function getOptionsWithHeaders (options, headers) {
+  options = shallowcopy(options)
+  if (!options.headers) {
+    options.headers = {}
+  }
+  mergeInto(headers, options.headers)
+  return options
 }
 
 function shallowcopy (obj) {
