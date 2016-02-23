@@ -1,5 +1,6 @@
 import * as API from './api.js'
 import * as arrays from './arrays.js'
+import {shallowcopy, mergeInto} from './util.js'
 
 // Note: We currently can't handle Hydra data in non-default graphs due to lack of support in JSON-LD framing.
 
@@ -440,7 +441,7 @@ function getAxisConcepts (domain) {
 function toLocalConstraintsIfDependencyMissing (apiConstraints, localConstraints, capabilities, axisConcepts) {
   for (let concept of Object.keys(apiConstraints)) {
     let depends = capabilities[concept].dependency
-    if (depends && depends.some(concept_ => !apiConstraints.has(concept_))) {
+    if (depends && depends.some(concept_ => !apiConstraints[concept_])) {
       let axis = Object.keys(axisConcepts).filter(axis => axisConcepts[axis] === concept)[0]
       localConstraints[axis] = apiConstraints[concept]
       delete apiConstraints[concept]
@@ -491,18 +492,4 @@ function getOptionsWithHeaders (options, headers) {
   }
   mergeInto(headers, options.headers)
   return options
-}
-
-function shallowcopy (obj) {
-  let copy = Object.create(Object.getPrototypeOf(obj))
-  for (let prop in obj) {
-    copy[prop] = obj[prop]
-  }
-  return copy
-}
-
-function mergeInto (inputObj, targetObj) {
-  for (let k of Object.keys(inputObj)) {
-    targetObj[k] = inputObj[k]
-  }
 }

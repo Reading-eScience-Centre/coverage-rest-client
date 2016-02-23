@@ -126,6 +126,8 @@ export class API {
       // server supports optional inclusion via Prefer header
       this.supportsPreferHeaders = true
     }
+    
+    this._createCapabilities()
   }
   
   get supportsBboxFiltering () {
@@ -169,10 +171,10 @@ export class API {
       filter: {},
       subset: {}
     }
-    let startstop = {
+    let startstop = () => ({
       start: true,
       stop: true
-    }
+    })
     if (this.supportsBboxFiltering) {
       // 'x' is not the axis name, it just represents the x-axis in a horizontal CRS
       caps.filter.x = {
@@ -187,10 +189,10 @@ export class API {
       }
     }
     if (this.supportsTimeFiltering) {
-      caps.filter.time = startstop
+      caps.filter.time = startstop()
     }
     if (this.supportsVerticalFiltering) {
-      caps.filter.vertical = startstop
+      caps.filter.vertical = startstop()
     }
     if (this.supportsBboxSubsetting) {
       caps.subset.x = {
@@ -205,10 +207,10 @@ export class API {
       }
     }
     if (this.supportsTimeSubsetting) {
-      caps.subset.time = startstop
+      caps.subset.time = startstop()
     }
     if (this.supportsVerticalSubsetting) {
-      caps.subset.vertical = startstop
+      caps.subset.vertical = startstop()
     }
     if (this.supportsVerticalTargetSubsetting) {
       if (!caps.subset.vertical) {
@@ -241,7 +243,7 @@ export class API {
    * 
    * 'embed' is an object {domain: true, range: true} where both members are optional.
    */
-  _getFilterTemplateVars (options) {
+  _getFilterTemplateVars (options = {}) {
     let templateVars = {}
     if (options.time) {
       if (!this.supportsTimeFiltering) {
@@ -308,7 +310,7 @@ export class API {
       if (!this.supportsBboxSubsetting) {
         throw new Error('BBOX subsetting not supported!')
       }
-      let bboxStr = getBboxString([options.x[0], options.y[0], options.x[1], options.y[1]])
+      let bboxStr = getBboxString([options.x.start, options.y.start, options.x.stop, options.y.stop])
       templateVars[this.supportedUrlProps.get(URL_PROPS.subsetBbox)] = bboxStr
       delete options.x
       delete options.y
