@@ -400,9 +400,9 @@ function getAxisConcepts (domain) {
   for (let axis of domain.axes.keys()) {
     let concept = undefined
     
-    let ref = referencing.filter(ref => ref.dimensions.indexOf(axis) !== -1)
+    let ref = referencing.filter(ref => ref.components.indexOf(axis) !== -1)
     if (ref.length === 1) {
-      let {dimensions, system} = ref[0]
+      let {components, system} = ref[0]
       
       if (system.type === 'TemporalRS') {
         // The assumption is that if the API offers filtering/subsetting by time,
@@ -416,7 +416,7 @@ function getAxisConcepts (domain) {
       } else if (system.type === 'GeodeticCRS' || system.type === 'ProjectedCRS') {
         // a geodetic crs can be x,y or x,y,z
         // a projected crs is x,y
-        let idx = dimensions.indexOf(axis)
+        let idx = components.indexOf(axis)
         if (idx === 0) {
           concept = 'x'
         } else if (idx === 1) {
