@@ -169,7 +169,8 @@ export class API {
   _createCapabilities () {
     let caps = {
       filter: {},
-      subset: {}
+      subset: {},
+      embed: {}
     }
     let startstop = () => ({
       start: true,
