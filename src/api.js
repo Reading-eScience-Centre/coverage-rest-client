@@ -368,6 +368,8 @@ export class API {
   }
   
   getUrlAndHeaders (options) {
+    // deep-copy as we delete properties after they are applied
+    options = JSON.parse(JSON.stringify(options))
     let subsetTemplateVars = this._getSubsetTemplateVars(options.subset)
     let filterTemplateVars = this._getFilterTemplateVars(options.filter)
     
