@@ -1,4 +1,4 @@
-import {promises as jsonld} from 'jsonld'
+import {promises as jsonld, default as jsonldOriginal} from 'jsonld'
 import urltemplate from 'url-template' 
 
 const PartialCollectionView = 'PartialCollectionView'
@@ -67,6 +67,34 @@ const FRAME_CONTEXT = [
      }
    ]
 
+/*
+ * We are using a custom jsonld document loader to skip loading the CovJSON context URL
+ * which may be included in the document. Instead we load a local partial copy of it.
+ */
+const CONTEXTS = {
+  "https://rawgit.com/reading-escience-centre/coveragejson/master/contexts/coveragejson-base.jsonld": 
+    {
+      "@context": {
+        "id": "@id",
+        "type": "@type"
+      }
+    }
+}
+const customLoader = function (url) {
+  if (url in CONTEXTS) {
+    return Promise.resolve({
+      contextUrl: null, // this is for a context via a link header
+      document: CONTEXTS[url], // this is the actual document that was loaded
+      documentUrl: url // this is the actual context URL after redirects
+    })
+  }
+  // fall-back to default loader
+  return jsonldOriginal.documentLoader(url)
+}
+const jsonldOpts = {
+  documentLoader: customLoader
+}
+
 /**
  * Extracts API information from the given Coverage/CoverageCollection object
  * and returns an API object.
@@ -80,8 +108,8 @@ export function discover (cov) {
   return jsonld.frame(cov.ld, {
     '@context': FRAME_CONTEXT,
     id: cov.id
-  })
-  .then(framed => jsonld.compact(framed, framed['@context']))
+  }, jsonldOpts)
+  .then(framed => jsonld.compact(framed, framed['@context'], jsonldOpts))
   .then(compacted => new API(compacted))
 }
 
