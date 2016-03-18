@@ -42,7 +42,7 @@ function wrapCollection (collection, options) {
       let wrapPageLink = url => {
         if (!url) return
         return {
-          load: () => load(url, options.headers).then(coll => wrap(coll, options))
+          load: () => load(url, {headers: options.headers}).then(coll => wrap(coll, options))
         }
       }
       newcoll.paging = {
@@ -175,7 +175,7 @@ class QueryProxy {
     
     let {url, headers} = this._api.getUrlAndHeaders(apiConstraints)
         
-    return load(url, headers).then(resultCollection => {
+    return load(url, {headers}).then(resultCollection => {
       // apply remaining query parts
       if (Object.keys(localSubsetConstraints).length > 0 || Object.keys(localFilterConstraints).length > 0) {
         // the locally queried collection is NOT wrapped! see comment for coverage subsetting below
