@@ -334,6 +334,7 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             useApi = true
           } else if (cap.start && cap.stop) {
             // emulate identity match via start/stop if we find a matching axis value
+            // FIXME handle longitude wrapping
             let idx = getClosestIndex(domain, axis, constraint.target, isTimeString)
             let val = domain.axes.get(axis).values[idx]
             if (isTimeString) {
@@ -351,6 +352,7 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             useApi = true
           } else if (cap.start && cap.stop) {
             // emulate target via start/stop
+            // FIXME handle longitude wrapping
             let idx = getClosestIndex(domain, axis, constraint.target, isTimeString)
             let val = domain.axes.get(axis).values[idx]
             constraint = {start: val, stop: val}
