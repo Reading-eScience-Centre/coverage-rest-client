@@ -202,8 +202,8 @@ function wrapCoverage (coverage, options) {
 }
 
 function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
-  return constraints => {
-    return coverage.loadDomain().then(domain => {              
+  return (constraints, options = {}) => {
+    return coverage.loadDomain().then(domain => {
       constraints = cleanedConstraints(constraints)
       
       if (!requiresSubsetting(domain, constraints)) {
@@ -219,11 +219,21 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
        */
                 
       // we split the subsetting constraints into API-compatible and local ones
-      let apiConstraints = {} // API concept -> spec
-      let localConstraints = {} // axis name -> spec
+      let apiConstraints = {
+        subset: {}, // API concept -> spec
+        embed: {}
+      }
+      let localSubsetConstraints = {} // axis name -> spec
+      
+      // embedding
+      // makes only sense when using the API, hence there is no local fall-back
+      let embedCaps = api.capabilities.embed
+      if (embedCaps.domain && embedCaps.range) {
+        apiConstraints.embed = options.embed
+      }
       
       if (caps.index) {
-        apiConstraints.index = constraints
+        apiConstraints.subset.index = constraints
       } else {
         // try to emulate some constraints
         for (let axis of Object.keys(constraints)) {
@@ -251,16 +261,16 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
           }
                        
           if (useApi) {
-            apiConstraints[axisMap[axis]] = constraint
+            apiConstraints.subset[axisMap[axis]] = constraint
           } else {
-            localConstraints[axis] = constraint
+            localSubsetConstraints[axis] = constraint
           }
         }
       }
 
-      toLocalConstraintsIfDependencyMissing(apiConstraints, localConstraints, caps, axisMap)
+      toLocalConstraintsIfDependencyMissing(apiConstraints.subset, localSubsetConstraints, caps, axisMap)
       
-      if (Object.keys(apiConstraints).length === 0) {
+      if (Object.keys(apiConstraints.subset).length === 0) {
         // Note that we DON'T wrap the locally subsetted coverage again.
         // This would be incorrect as a partially applied local subset would not be
         // known by the API metadata and therefore a subsequent API subset operation would
@@ -279,12 +289,12 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
         return coverage.subsetByIndex(constraints)
       }
       
-      let {url, headers} = api.getUrlAndHeaders({subset: apiConstraints})
-      return wrapOptions.loader(url, headers).then(subset => {
+      let {url, headers} = api.getUrlAndHeaders(apiConstraints)
+      return wrapOptions.loader(url, {headers}).then(subset => {
         // apply remaining subset constraints
-        if (Object.keys(localConstraints).length > 0) {
+        if (Object.keys(localSubsetConstraints).length > 0) {
           // again, we DON'T wrap the locally subsetted coverage again, see above
-          return subset.subsetByIndex(localConstraints)
+          return subset.subsetByIndex(localSubsetConstraints)
         } else {
           return wrap(subset, wrapOptions)
         }
@@ -294,7 +304,7 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
 }
 
 function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
-  return constraints => {
+  return (constraints, options = {}) => {
     return coverage.loadDomain().then(domain => {
       constraints = cleanedConstraints(constraints)
       
@@ -319,8 +329,19 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
        */
         
       // we split the subsetting constraints into API-compatible and local ones
-      let apiConstraints = {} // API concept -> spec
-      let localConstraints = {} // axis name -> spec
+      let apiConstraints = {
+        subset: {}, // API concept -> spec
+        embed: {}
+      }
+      let localSubsetConstraints = {} // axis name -> spec
+      
+      // embedding
+      // makes only sense when using the API, hence there is no local fall-back
+      let embedCaps = api.capabilities.embed
+      if (embedCaps.domain && embedCaps.range) {
+        apiConstraints.embed = options.embed
+      }
+      
       for (let axis of Object.keys(constraints)) {
         let useApi = false
         let constraint = constraints[axis]
@@ -364,25 +385,25 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
         }
                      
         if (useApi) {
-          apiConstraints[axisMap[axis]] = constraint
+          apiConstraints.subset[axisMap[axis]] = constraint
         } else {
-          localConstraints[axis] = constraint
+          localSubsetConstraints[axis] = constraint
         }
       }
       
-      toLocalConstraintsIfDependencyMissing(apiConstraints, localConstraints, caps, axisMap)
+      toLocalConstraintsIfDependencyMissing(apiConstraints.subset, localSubsetConstraints, caps, axisMap)
       
-      if (Object.keys(apiConstraints).length === 0) {
+      if (Object.keys(apiConstraints.subset).length === 0) {
         // again, we DON'T wrap the locally subsetted coverage again, see above
         return coverage.subsetByValue(constraints)
       }
       
-      let {url, headers} = api.getUrlAndHeaders({subset: apiConstraints})        
-      return wrapOptions.loader(url, headers).then(subset => {
+      let {url, headers} = api.getUrlAndHeaders(apiConstraints)        
+      return wrapOptions.loader(url, {headers}).then(subset => {
         // apply remaining subset constraints
-        if (Object.keys(localConstraints).length > 0) {
+        if (Object.keys(localSubsetConstraints).length > 0) {
           // again, we DON'T wrap the locally subsetted coverage again, see above
-          return subset.subsetByValue(localConstraints)
+          return subset.subsetByValue(localSubsetConstraints)
         } else {
           return wrap(subset, wrapOptions)
         }
