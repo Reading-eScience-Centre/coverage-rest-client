@@ -117,12 +117,9 @@ export class API {
   /**
    * @param ld A framed and compacted JSON-LD document from which Hydra data can be read.
    */
-  constructor (ld) {
+  constructor (ld = {}) {
     this.supportedUrlProps = new Map()
     
-    if (!ld) return
-    console.log(ld)
-
     if (ld.view && ld.view.type === PartialCollectionView) {
       this.isPaged = true
       this.paging = ld.view
