@@ -6,11 +6,6 @@ const IriTemplate = 'IriTemplate'
       
 const COVAPI_NS = 'http://coverageapi.org/ns#'
 const COVAPI_API = COVAPI_NS + 'api'
-const CanInclude = COVAPI_NS + 'canInclude'
-
-const COVJSON_NS = 'http://coveragejson.org/def#'
-const Domain = COVJSON_NS + 'Domain'
-const Range = COVJSON_NS + 'Range'
 
 const OSGEO_NS = 'http://a9.com/-/opensearch/extensions/geo/1.0/'
 const OSTIME_NS = 'http://a9.com/-/opensearch/extensions/time/1.0/'
@@ -146,12 +141,7 @@ export class API {
       
       console.log(ld.api)
     }
-    
-    if (ld[CanInclude]) {
-      // server supports optional inclusion via Prefer header
-      this.supportsPreferHeaders = true
-    }
-    
+        
     this._createCapabilities()
   }
   
@@ -194,8 +184,7 @@ export class API {
   _createCapabilities () {
     let caps = {
       filter: {},
-      subset: {},
-      embed: {}
+      subset: {}
     }
     let startstop = () => ({
       start: true,
@@ -251,23 +240,15 @@ export class API {
         step: true
       }
     }
-    if (this.supportsPreferHeaders) {
-      caps.embed = {
-        domain: true,
-        range: true
-      }
-    }
     this.capabilities = caps
   }
   
   /**
-   * Option keys: time, x, y, vertical, embed
+   * Option keys: time, x, y, vertical
    * 
    * Each value except for 'embed' is one of (check this.capabilities to see which ones are supported!):
    * 
    * {start, stop} // intersect match
-   * 
-   * 'embed' is an object {domain: true, range: true} where both members are optional.
    */
   _getFilterTemplateVars (options = {}) {
     let templateVars = {}
@@ -375,27 +356,7 @@ export class API {
     return templateVars
   }
   
-  _getIncludeDomainAndRangeHeaders (options = {}) {
-    if (!this.supportsPreferHeaders) {
-      return {}
-    }
-    let uris = []
-    if (options.domain) {
-      uris.push(Domain)
-    }
-    if (options.range) {
-      uris.push(Range)
-    }
-    if (uris.length === 0) {
-      return {}
-    }
-    return {
-      Prefer: 'return=representation; ' + 
-              'include="' + uris.join(' ') + '"'
-    }
-  }
-  
-  getUrlAndHeaders (options) {
+  getUrl (options) {
     // deep-copy as we delete properties after they are applied
     options = JSON.parse(JSON.stringify(options))
     let subsetTemplateVars = this._getSubsetTemplateVars(options.subset)
@@ -407,8 +368,7 @@ export class API {
     }
     
     let url = urltemplate.parse(this.urlTemplate.template).expand(templateVars)
-    let headers = this._getIncludeDomainAndRangeHeaders(options.embed)
-    return {url, headers}
+    return url
   }
   
 }

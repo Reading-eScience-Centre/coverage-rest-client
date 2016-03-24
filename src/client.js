@@ -12,37 +12,41 @@ import {shallowcopy, mergeInto} from './util.js'
  * @param {object} options Options which control the behaviour of the wrapper.
  * @param {function} options.loader 
  *   The function to use for loading coverage data from a URL.
- *   It is called as loader(url, headers) where headers is an optional object
- *   of HTTP headers to send.
+ *   It is called as loader(url, options) where options corresponds to the
+ *   options parameter of Coverage.subsetBy* and CoverageCollectionQuery.execute.
  *   It must return a Promise succeeding with a Coverage Data API object.
  *   
  * @returns {object} The wrapped Coverage Data API object.
  */
 export function wrap (data, options) {
-  if (typeof options.loader !== 'function') {
+  return doWrap(data, options)
+}
+
+function doWrap (data, wrapOptions, loaderOptions) {
+  if (typeof wrapOptions.loader !== 'function') {
     throw new Error('options.loader must be a function')
   }
   if (data.coverages) {
-    return wrapCollection(data, options)
+    return wrapCollection(data, wrapOptions, loaderOptions)
   } else {
-    return wrapCoverage(data, options)
+    return wrapCoverage(data, wrapOptions)
   }
 }
 
-function wrapCollection (collection, options) {
+function wrapCollection (collection, wrapOptions, loaderOptions) {
   // TODO wrap each individual coverage as well!
   return API.discover(collection).then(api => {
     let newcoll = shallowcopy(collection)
     newcoll.query = () => {
       let query = collection.query()
-      return new QueryProxy(query, newcoll, api, options)
+      return new QueryProxy(query, newcoll, api, wrapOptions)
     }
     if (api.isPaged) {
-      let load = options.loader
+      let load = wrapOptions.loader
       let wrapPageLink = url => {
         if (!url) return
         return {
-          load: () => load(url, {headers: options.headers}).then(coll => wrap(coll, options))
+          load: () => load(url, loaderOptions).then(coll => wrap(coll, wrapOptions))
         }
       }
       newcoll.paging = {
@@ -62,15 +66,14 @@ function wrapCollection (collection, options) {
  * if possible.
  */
 class QueryProxy {
-  constructor (query, collection, api, options) {
+  constructor (query, collection, api, wrapOptions) {
     this._query = query
     this._collection = collection
     this._api = api
-    this._options = options
+    this._wrapOptions = wrapOptions
     
     this._filter = {}
     this._subset = {}
-    this._embed = {}
   }
   
   filter (spec) {
@@ -84,50 +87,36 @@ class QueryProxy {
     mergeInto(spec, this._subset)
     return this
   }
-  
-  embed (spec) {
-    this._query.embed(spec)
-    mergeInto(spec, this._embed)
-    return this
-  }
-  
-  execute () {
+    
+  execute (options) {
     let domainTemplate = this._collection.domainTemplate
     if (domainTemplate) {
       return this._doExecute(domainTemplate)
     } else {
       // inspect domain of first coverage and assume uniform collection
       if (this._collection.coverages.length > 0) {
-        return this._collection.coverages[0].loadDomain().then(domain => this._doExecute(domain))
+        return this._collection.coverages[0].loadDomain().then(domain => this._doExecute(options, domain))
       } else {
-        return this._query.execute()
+        return this._query.execute(options)
       }
     }
   }
   
-  _doExecute (domainTemplate) {
-    let load = this._options.loader
+  _doExecute (options, domainTemplate) {
+    let load = this._wrapOptions.loader
     
     let filterCaps = this._api.capabilities.filter
     let subsetCaps = this._api.capabilities.subset
-    let embedCaps = this._api.capabilities.embed
     let axisMap = getAxisConcepts(domainTemplate)
     
     // split constraints into API and locally applied ones
     let apiConstraints = {
       filter: {},
-      subset: {},
-      embed: {}
+      subset: {}
     }
 
     let localFilterConstraints = {} // axis name -> spec
     let localSubsetConstraints = {} // axis name -> spec
-    
-    // embedding
-    // makes only sense when using the API, hence there is no local fall-back
-    if (embedCaps.domain && embedCaps.range) {
-      apiConstraints.embed = this._embed
-    }
     
     // filtering
     for (let axis of Object.keys(this._filter)) {
@@ -166,16 +155,13 @@ class QueryProxy {
     toLocalConstraintsIfDependencyMissing(apiConstraints.filter, localFilterConstraints, filterCaps, axisMap)
     toLocalConstraintsIfDependencyMissing(apiConstraints.subset, localSubsetConstraints, subsetCaps, axisMap)
     
-    // TODO if only embed is requested, check if this is already applied and return the original collection in that case
     if (Object.keys(apiConstraints.filter).length === 0 && 
-        Object.keys(apiConstraints.subset).length === 0 &&
-        Object.keys(apiConstraints.embed).length === 0) {
-      return this._query.execute()
+        Object.keys(apiConstraints.subset).length === 0) {
+      return this._query.execute(options)
     }
     
-    let {url, headers} = this._api.getUrlAndHeaders(apiConstraints)
-        
-    return load(url, {headers}).then(resultCollection => {
+    let url = this._api.getUrl(apiConstraints)        
+    return load(url, options).then(resultCollection => {
       // apply remaining query parts
       if (Object.keys(localSubsetConstraints).length > 0 || Object.keys(localFilterConstraints).length > 0) {
         // the locally queried collection is NOT wrapped! see comment for coverage subsetting below
@@ -185,18 +171,17 @@ class QueryProxy {
           .execute()
       } else {
         // carry-over headers for paging
-        let options = getOptionsWithHeaders(this._options, headers)
-        return wrap(resultCollection, options)
+        return doWrap(resultCollection, this._wrapOptions, options)
       }
     })
   }
 }
 
-function wrapCoverage (coverage, options) {
+function wrapCoverage (coverage, wrapOptions) {
   return API.discover(coverage).then(api => {
     let wrappedCoverage = shallowcopy(coverage)
-    wrappedCoverage.subsetByIndex = wrappedSubsetByIndex(coverage, wrappedCoverage, api, options)
-    wrappedCoverage.subsetByValue = wrappedSubsetByValue(coverage, wrappedCoverage, api, options)
+    wrappedCoverage.subsetByIndex = wrappedSubsetByIndex(coverage, wrappedCoverage, api, wrapOptions)
+    wrappedCoverage.subsetByValue = wrappedSubsetByValue(coverage, wrappedCoverage, api, wrapOptions)
     return wrappedCoverage
   })
 }
@@ -220,17 +205,9 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
                 
       // we split the subsetting constraints into API-compatible and local ones
       let apiConstraints = {
-        subset: {}, // API concept -> spec
-        embed: {}
+        subset: {} // API concept -> spec
       }
       let localSubsetConstraints = {} // axis name -> spec
-      
-      // embedding
-      // makes only sense when using the API, hence there is no local fall-back
-      let embedCaps = api.capabilities.embed
-      if (embedCaps.domain && embedCaps.range) {
-        apiConstraints.embed = options.embed
-      }
       
       if (caps.index) {
         apiConstraints.subset.index = constraints
@@ -286,15 +263,15 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
         //  3.1. Subset Coverage A by time with API -> Coverage C with API info
         //  3.2. Subset Coverage C by bounding box without API -> Coverage D with subset relationship to Coverage C
         // TODO implement that or think of something simpler
-        return coverage.subsetByIndex(constraints)
+        return coverage.subsetByIndex(constraints, options)
       }
       
-      let {url, headers} = api.getUrlAndHeaders(apiConstraints)
-      return wrapOptions.loader(url, {headers}).then(subset => {
+      let url = api.getUrl(apiConstraints)
+      return wrapOptions.loader(url, options).then(subset => {
         // apply remaining subset constraints
         if (Object.keys(localSubsetConstraints).length > 0) {
           // again, we DON'T wrap the locally subsetted coverage again, see above
-          return subset.subsetByIndex(localSubsetConstraints)
+          return subset.subsetByIndex(localSubsetConstraints, options)
         } else {
           return wrap(subset, wrapOptions)
         }
@@ -330,17 +307,9 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
         
       // we split the subsetting constraints into API-compatible and local ones
       let apiConstraints = {
-        subset: {}, // API concept -> spec
-        embed: {}
+        subset: {} // API concept -> spec
       }
       let localSubsetConstraints = {} // axis name -> spec
-      
-      // embedding
-      // makes only sense when using the API, hence there is no local fall-back
-      let embedCaps = api.capabilities.embed
-      if (embedCaps.domain && embedCaps.range) {
-        apiConstraints.embed = options.embed
-      }
       
       for (let axis of Object.keys(constraints)) {
         let useApi = false
@@ -395,15 +364,15 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
       
       if (Object.keys(apiConstraints.subset).length === 0) {
         // again, we DON'T wrap the locally subsetted coverage again, see above
-        return coverage.subsetByValue(constraints)
+        return coverage.subsetByValue(constraints, options)
       }
       
-      let {url, headers} = api.getUrlAndHeaders(apiConstraints)        
-      return wrapOptions.loader(url, {headers}).then(subset => {
+      let url = api.getUrl(apiConstraints)        
+      return wrapOptions.loader(url, options).then(subset => {
         // apply remaining subset constraints
         if (Object.keys(localSubsetConstraints).length > 0) {
           // again, we DON'T wrap the locally subsetted coverage again, see above
-          return subset.subsetByValue(localSubsetConstraints)
+          return subset.subsetByValue(localSubsetConstraints, options)
         } else {
           return wrap(subset, wrapOptions)
         }
@@ -508,11 +477,3 @@ function cleanedConstraints (constraints) {
   return cleanConstraints
 }
 
-function getOptionsWithHeaders (options, headers) {
-  options = shallowcopy(options)
-  if (!options.headers) {
-    options.headers = {}
-  }
-  mergeInto(headers, options.headers)
-  return options
-}
