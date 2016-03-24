@@ -19,21 +19,17 @@ import {shallowcopy, mergeInto} from './util.js'
  * @returns {object} The wrapped Coverage Data API object.
  */
 export function wrap (data, options) {
-  return doWrap(data, options)
-}
-
-function doWrap (data, wrapOptions, loaderOptions) {
-  if (typeof wrapOptions.loader !== 'function') {
+  if (typeof options.loader !== 'function') {
     throw new Error('options.loader must be a function')
   }
   if (data.coverages) {
-    return wrapCollection(data, wrapOptions, loaderOptions)
+    return wrapCollection(data, options)
   } else {
-    return wrapCoverage(data, wrapOptions)
+    return wrapCoverage(data, options)
   }
 }
 
-function wrapCollection (collection, wrapOptions, loaderOptions) {
+function wrapCollection (collection, wrapOptions) {
   // TODO wrap each individual coverage as well!
   return API.discover(collection).then(api => {
     let newcoll = shallowcopy(collection)
@@ -46,7 +42,7 @@ function wrapCollection (collection, wrapOptions, loaderOptions) {
       let wrapPageLink = url => {
         if (!url) return
         return {
-          load: () => load(url, loaderOptions).then(coll => wrap(coll, wrapOptions))
+          load: (options) => load(url, options).then(coll => wrap(coll, wrapOptions))
         }
       }
       newcoll.paging = {
@@ -170,8 +166,7 @@ class QueryProxy {
           .subset(localSubsetConstraints)
           .execute()
       } else {
-        // carry-over headers for paging
-        return doWrap(resultCollection, this._wrapOptions, options)
+        return wrap(resultCollection, this._wrapOptions)
       }
     })
   }
