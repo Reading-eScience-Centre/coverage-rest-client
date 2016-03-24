@@ -386,6 +386,9 @@ export class API {
     if (options.range) {
       uris.push(Range)
     }
+    if (uris.length === 0) {
+      return {}
+    }
     return {
       Prefer: 'return=representation; ' + 
               'include="' + uris.join(' ') + '"'
