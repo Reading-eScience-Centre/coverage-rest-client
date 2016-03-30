@@ -464,7 +464,7 @@ function getClosestIndex (domain, axis, val) {
 function getClosestIndexArr (vals, val) {
   let [lo,hi] = arrays.indicesOfNearest(vals, val)
   let idx = Math.abs(val - vals[lo]) <= Math.abs(val - vals[hi]) ? lo : hi
-  return {idx, outside: lo === hi}
+  return {idx, outside: lo === hi && vals[lo] !== val}
 }
 
 function prepareForAxisArraySearch (domain, axis, ...searchVal) {
