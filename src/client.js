@@ -322,7 +322,7 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             useApi = true
           } else if (cap.start && cap.stop) {
             // emulate identity match via start/stop if we find a matching axis value
-            let {idx} = getClosestIndex(domain, axis, constraint.target)
+            let idx = getClosestIndex(domain, axis, constraint.target)
             let val = domain.axes.get(axis).values[idx]
             if (isTimeString) {
               if (new Date(val).getTime() === new Date(constraint).getTime()) {
@@ -339,9 +339,12 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             useApi = true
           } else if (cap.start && cap.stop) {
             // emulate target via start/stop
-            let {idx,outside} = getClosestIndex(domain, axis, constraint.target)
+            let [vals, target] = prepareForAxisArraySearch(domain, axis, constraint.target)
+            // FIXME handle explicit bounds
+            let [minBound,maxBound] = getAxisExtent(vals)
             // if the target is outside the axis extent then the API can't be used (as there is no intersection then)
-            if (!outside) {
+            if (minBound <= target && target <= maxBound) {
+              let idx = getClosestIndex(domain, axis, constraint.target)
               let val = domain.axes.get(axis).values[idx]
               constraint = {start: val, stop: val}
               useApi = true
@@ -352,18 +355,19 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
           useApi = cap.start && cap.stop
           
           if (useApi) {
-            // TODO handle bounds
+            // FIXME handle explicit bounds
             
             // snap start/stop to axis values to increase the chance of using a cached request
             let [vals, start, stop] = prepareForAxisArraySearch(domain, axis, constraint.start, constraint.stop)
-            let resStart = getClosestIndexArr(vals, start)
-            let resStop = getClosestIndexArr(vals, stop)
-            if (resStart.outside && resStop.outside) {
+            let [minBound,maxBound] = getAxisExtent(vals)
+            if (stop < minBound || start > maxBound) {
               // if both start and stop are outside the axis extent, then snapping would be wrong (has to be an error)
               throw new Error('start or stop must be inside the axis extent')
             } else {
+              let idxStart = getClosestIndexArr(vals, start)
+              let idxStop = getClosestIndexArr(vals, stop)
               let axisVals = domain.axes.get(axis).values
-              constraint = {start: axisVals[resStart.idx], stop: axisVals[resStop.idx]}
+              constraint = {start: axisVals[idxStart], stop: axisVals[idxStop]}
             }
           }
         }
@@ -456,6 +460,20 @@ function toLocalConstraintsIfDependencyMissing (apiConstraints, localConstraints
   }
 }
 
+function getAxisExtent (vals) {
+  // TODO handle explicit axis bounds (currently assumes a regular axis)
+  let [min, max] = [vals[0], vals[vals.length-1]]
+  if (min > max) {
+    [min, max] = [max, min]
+  }
+  if (vals.length > 1) {
+    // calculate cell size and extend by half a cell size on each end
+    let halfSize = Math.abs(vals[0] - vals[1]) / 2;
+    [min, max] = [min - halfSize, max + halfSize]
+  }
+  return [min, max]
+}
+
 function getClosestIndex (domain, axis, val) {
   let [axisVals, searchVal] = prepareForAxisArraySearch(domain, axis, val)
   return getClosestIndexArr(axisVals, searchVal) 
@@ -464,7 +482,7 @@ function getClosestIndex (domain, axis, val) {
 function getClosestIndexArr (vals, val) {
   let [lo,hi] = arrays.indicesOfNearest(vals, val)
   let idx = Math.abs(val - vals[lo]) <= Math.abs(val - vals[hi]) ? lo : hi
-  return {idx, outside: lo === hi && vals[lo] !== val}
+  return idx
 }
 
 function prepareForAxisArraySearch (domain, axis, ...searchVal) {
