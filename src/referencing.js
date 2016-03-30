@@ -72,7 +72,7 @@ export function getLongitudeWrapper (domain, axisName) {
  * @ignore
  */
 export function isLongitudeAxis (domain, axisName) {
-  let ref = getReferenceObject(domain, [axisName])
+  let ref = getReferenceObject(domain, axisName)
   if (!ref) {
     return false
   }
