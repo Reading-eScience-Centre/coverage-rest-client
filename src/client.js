@@ -1,6 +1,7 @@
 import * as API from './api.js'
 import * as arrays from './arrays.js'
 import {shallowcopy, mergeInto} from './util.js'
+import {isISODateAxis, isLongitudeAxis, getLongitudeWrapper} from './referencing.js'
 
 // Note: We currently can't handle Hydra data in non-default graphs due to lack of support in JSON-LD framing.
 
@@ -299,6 +300,8 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
        * A safe start/stop would then be a newly calculated axis value which is in the middle
        * of the bounds.
        */
+      
+      // TODO if API axis-value-subsetting is not supported, try to emulate with API axis-index-subsetting
         
       // we split the subsetting constraints into API-compatible and local ones
       let apiConstraints = {
@@ -310,7 +313,7 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
         let useApi = false
         let constraint = constraints[axis]
         let cap = caps[axisMap[axis]]
-        let isTimeString = axisMap[axis] === 'time'
+        let isTimeString = isISODateAxis(domain, axis)
         
         if (!cap) {
           // leave useApi = false
@@ -319,8 +322,7 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             useApi = true
           } else if (cap.start && cap.stop) {
             // emulate identity match via start/stop if we find a matching axis value
-            // FIXME handle longitude wrapping
-            let idx = getClosestIndex(domain, axis, constraint.target, isTimeString)
+            let {idx} = getClosestIndex(domain, axis, constraint.target)
             let val = domain.axes.get(axis).values[idx]
             if (isTimeString) {
               if (new Date(val).getTime() === new Date(constraint).getTime()) {
@@ -337,15 +339,33 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             useApi = true
           } else if (cap.start && cap.stop) {
             // emulate target via start/stop
-            // FIXME handle longitude wrapping
-            let idx = getClosestIndex(domain, axis, constraint.target, isTimeString)
-            let val = domain.axes.get(axis).values[idx]
-            constraint = {start: val, stop: val}
-            useApi = true
+            let {idx,outside} = getClosestIndex(domain, axis, constraint.target)
+            // if the target is outside the axis extent then the API can't be used (as there is no intersection then)
+            if (!outside) {
+              let val = domain.axes.get(axis).values[idx]
+              constraint = {start: val, stop: val}
+              useApi = true
+            }
           }
         } else {
           // start / stop
           useApi = cap.start && cap.stop
+          
+          if (useApi) {
+            // TODO handle bounds
+            
+            // snap start/stop to axis values to increase the chance of using a cached request
+            let [vals, start, stop] = prepareForAxisArraySearch(domain, axis, constraint.start, constraint.stop)
+            let resStart = getClosestIndexArr(vals, start)
+            let resStop = getClosestIndexArr(vals, stop)
+            if (resStart.outside && resStop.outside) {
+              // if both start and stop are outside the axis extent, then snapping would be wrong (has to be an error)
+              throw new Error('start or stop must be inside the axis extent')
+            } else {
+              let axisVals = domain.axes.get(axis).values
+              constraint = {start: axisVals[resStart.idx], stop: axisVals[resStop.idx]}
+            }
+          }
         }
                      
         if (useApi) {
@@ -436,15 +456,30 @@ function toLocalConstraintsIfDependencyMissing (apiConstraints, localConstraints
   }
 }
 
-function getClosestIndex (domain, axis, val, isTimeString) {
-  let vals = domain.axes.get(axis).values
-  if (isTimeString) {
+function getClosestIndex (domain, axis, val) {
+  let [axisVals, searchVal] = prepareForAxisArraySearch(domain, axis, val)
+  return getClosestIndexArr(axisVals, searchVal) 
+}
+
+function getClosestIndexArr (vals, val) {
+  let [lo,hi] = arrays.indicesOfNearest(vals, val)
+  let idx = Math.abs(val - vals[lo]) <= Math.abs(val - vals[hi]) ? lo : hi
+  return {idx, outside: lo === hi}
+}
+
+function prepareForAxisArraySearch (domain, axis, ...searchVal) {
+  let axisVals = domain.axes.get(axis).values
+  searchVal = [...searchVal] // to array
+  if (isISODateAxis(domain, axis)) {
     // convert to unix timestamps as we need numbers
-    val = new Date(val).getTime()
-    vals = vals.map(t => new Date(t).getTime())
+    let toUnix = v => new Date(v).getTime()
+    searchVal = searchVal.map(toUnix)
+    axisVals = axisVals.map(toUnix)
+  } else if (isLongitudeAxis(domain, axis)) {
+    let lonWrapper = getLongitudeWrapper(domain, axis)
+    searchVal = searchVal.map(lonWrapper)
   }
-  let idx = arrays.indexOfNearest(vals, val)
-  return idx
+  return [axisVals, ...searchVal]
 }
 
 /**
