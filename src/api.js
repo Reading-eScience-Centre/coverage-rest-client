@@ -119,27 +119,21 @@ export class API {
       this.isPaged = true
       this.paging = ld.view
       this.paging.total = ld.totalItems
-      
-      console.log(ld.view)
     }
 
     if (ld.api && ld.api.type === IriTemplate) {
       this.hasUrlTemplate = true
       this.urlTemplate = ld.api
-      console.log('URL template: ' + ld.api.template)
       
       let mappings = ld.api.mapping
       for (let mapping of mappings) {
         let propId = mapping.property.id
         for (let prop in URL_PROPS) {
           if (URL_PROPS[prop] === propId) {
-            console.log('property recognized: ' + propId + ' (variable: ' + mapping.variable + ')')
             this.supportedUrlProps.set(propId, mapping.variable)
           }
         }          
       }
-      
-      console.log(ld.api)
     }
         
     this._createCapabilities()
