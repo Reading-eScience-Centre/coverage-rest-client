@@ -339,11 +339,11 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
             useApi = true
           } else if (cap.start && cap.stop) {
             // emulate target via start/stop
-            let [vals, target] = prepareForAxisArraySearch(domain, axis, constraint.target)
-            // FIXME handle explicit bounds
-            let [minBound,maxBound] = getAxisExtent(vals)
+            let [vals, bounds, target] = prepareForAxisArraySearch(domain, axis, constraint.target)
+            let [minBound,maxBound] = getAxisExtent(vals, bounds)
             // if the target is outside the axis extent then the API can't be used (as there is no intersection then)
             if (minBound <= target && target <= maxBound) {
+              // FIXME handle explicit bounds
               let idx = getClosestIndex(domain, axis, constraint.target)
               let val = domain.axes.get(axis).values[idx]
               constraint = {start: val, stop: val}
@@ -355,15 +355,14 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
           useApi = cap.start && cap.stop
           
           if (useApi) {
-            // FIXME handle explicit bounds
-            
             // snap start/stop to axis values to increase the chance of using a cached request
-            let [vals, start, stop] = prepareForAxisArraySearch(domain, axis, constraint.start, constraint.stop)
-            let [minBound,maxBound] = getAxisExtent(vals)
+            let [vals, bounds, start, stop] = prepareForAxisArraySearch(domain, axis, constraint.start, constraint.stop)
+            let [minBound,maxBound] = getAxisExtent(vals, bounds)
             if (stop < minBound || start > maxBound) {
               // if both start and stop are outside the axis extent, then snapping would be wrong (has to be an error)
               throw new Error('start or stop must be inside the axis extent')
             } else {
+              // FIXME handle explicit bounds
               let idxStart = getClosestIndexArr(vals, start)
               let idxStop = getClosestIndexArr(vals, stop)
               let axisVals = domain.axes.get(axis).values
@@ -460,13 +459,19 @@ function toLocalConstraintsIfDependencyMissing (apiConstraints, localConstraints
   }
 }
 
-function getAxisExtent (vals) {
-  // TODO handle explicit axis bounds (currently assumes a regular axis)
-  let [min, max] = [vals[0], vals[vals.length-1]]
+function getAxisExtent (vals, bounds) {
+  let min, max
+  if (bounds) {
+    [min, max] = [bounds.get(0)[0], bounds.get(vals.length-1)[1]]
+  } else {
+    [min, max] = [vals[0], vals[vals.length-1]]
+  }
   if (min > max) {
     [min, max] = [max, min]
   }
-  if (vals.length > 1) {
+  // if no explicit bounds are given then we assume a regular axis and derive bounds
+  // TODO this is not desirable in all cases (time steps etc.), should be recorded in the domain data (point vs cell)
+  if (!bounds && vals.length > 1) {
     // calculate cell size and extend by half a cell size on each end
     let halfSize = Math.abs(vals[0] - vals[1]) / 2;
     [min, max] = [min - halfSize, max + halfSize]
@@ -475,7 +480,7 @@ function getAxisExtent (vals) {
 }
 
 function getClosestIndex (domain, axis, val) {
-  let [axisVals, searchVal] = prepareForAxisArraySearch(domain, axis, val)
+  let [axisVals, , searchVal] = prepareForAxisArraySearch(domain, axis, val)
   return getClosestIndexArr(axisVals, searchVal) 
 }
 
@@ -487,17 +492,32 @@ function getClosestIndexArr (vals, val) {
 
 function prepareForAxisArraySearch (domain, axis, ...searchVal) {
   let axisVals = domain.axes.get(axis).values
+  let axisBounds = domain.axes.get(axis).bounds
   searchVal = [...searchVal] // to array
   if (isISODateAxis(domain, axis)) {
     // convert to unix timestamps as we need numbers
     let toUnix = v => new Date(v).getTime()
     searchVal = searchVal.map(toUnix)
     axisVals = axisVals.map(toUnix)
+    if (axisBounds) {
+      let originalBounds = axisBounds
+      axisBounds = {
+        get: i => [toUnix(originalBounds.get(i)[0]), 
+                   toUnix(originalBounds.get(i)[1])]
+      }
+    }
   } else if (isLongitudeAxis(domain, axis)) {
     let lonWrapper = getLongitudeWrapper(domain, axis)
     searchVal = searchVal.map(lonWrapper)
+    if (axisBounds) {
+      let originalBounds = axisBounds
+      axisBounds = {
+        get: i => [lonWrapper(originalBounds.get(i)[0]), 
+                   lonWrapper(originalBounds.get(i)[1])]
+      }
+    }
   }
-  return [axisVals, ...searchVal]
+  return [axisVals, axisBounds, ...searchVal]
 }
 
 /**
