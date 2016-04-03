@@ -191,6 +191,11 @@ function wrappedSubsetByIndex (coverage, wrappedCoverage, api, wrapOptions) {
         return wrappedCoverage
       }
       
+      // if the coverage is fully loaded, then there is no need to use a server API
+      if (coverage.loaded) {
+        return coverage.subsetByIndex(constraints, options)
+      }
+      
       let caps = api.capabilities.subset
       let axisMap = getAxisConcepts(domain)
       
@@ -283,6 +288,11 @@ function wrappedSubsetByValue (coverage, wrappedCoverage, api, wrapOptions) {
       
       if (!requiresSubsetting(domain, constraints)) {
         return wrappedCoverage
+      }
+      
+      // if the coverage is fully loaded, then there is no need to use a server API
+      if (coverage.loaded) {
+        return coverage.subsetByValue(constraints, options)
       }
       
       let caps = api.capabilities.subset      
@@ -509,13 +519,6 @@ function prepareForAxisArraySearch (domain, axis, ...searchVal) {
   } else if (isLongitudeAxis(domain, axis)) {
     let lonWrapper = getLongitudeWrapper(domain, axis)
     searchVal = searchVal.map(lonWrapper)
-    if (axisBounds) {
-      let originalBounds = axisBounds
-      axisBounds = {
-        get: i => [lonWrapper(originalBounds.get(i)[0]), 
-                   lonWrapper(originalBounds.get(i)[1])]
-      }
-    }
   }
   return [axisVals, axisBounds, ...searchVal]
 }
