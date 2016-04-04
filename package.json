@@ -14,24 +14,23 @@
     "name": "Maik Riechert"
   },
   "main": "lib/client.js",
-  "jspm": {
-    "files": [
-      "src/"
-    ],
-    "main": "src/client.js",
-    "dependencies": {
-      "jsonld": "npm:jsonld@^0.4.2",
-      "url-template": "npm:url-template@^2.0.6"
-    }
-  },
   "dependencies": {
     "jsonld": "^0.4.2",
     "url-template": "^2.0.6"
   },
   "files": [
+    "src/",
     "lib/",
     "coverage-rest-client.*"
   ],
+  "jspm": {
+    "registry": "npm",
+    "format": "esm",
+    "files": [
+      "src/"
+    ],
+    "main": "src/client.js"
+  },
   "scripts": {
     "docs": "esdoc -c esdoc.json",
     "style": "standard",
