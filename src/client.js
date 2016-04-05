@@ -3,6 +3,9 @@ import * as arrays from './arrays.js'
 import {shallowcopy, mergeInto} from './util.js'
 import {isISODateAxis, isLongitudeAxis, getLongitudeWrapper} from './referencing.js'
 
+const COVERAGE = 'Coverage'
+const COVERAGECOLLECTION = COVERAGE + 'Collection'
+
 // Note: We currently can't handle Hydra data in non-default graphs due to lack of support in JSON-LD framing.
 
 /**
@@ -23,10 +26,13 @@ export function wrap (data, options) {
   if (typeof options.loader !== 'function') {
     throw new Error('options.loader must be a function')
   }
-  if (data.coverages) {
+  if (data.type === COVERAGECOLLECTION) {
     return wrapCollection(data, options)
-  } else {
+  } else if (data.type === COVERAGE) {
     return wrapCoverage(data, options)
+  } else {
+    // Domain or other unknown type
+    return data
   }
 }
 
