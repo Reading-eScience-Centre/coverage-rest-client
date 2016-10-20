@@ -1,5 +1,9 @@
 # coverage-rest-client
 
+**DEPRECATED!** *Some of the functionality of this library has been integrated natively within the [CoverageJSON](https://covjson.org) format (tiling support). The rest is too experimental and will not be developed further here.*
+
+
+
 An experimental library that wraps [Coverage or Coverage Collection objects](https://github.com/Reading-eScience-Centre/coverage-jsapi)
 and runs operations like subsetting through a REST API that follows the ["Coverage Data REST API Core Specification"](https://github.com/Reading-eScience-Centre/coverage-restapi) instead of loading the complete data and doing it locally.
 
@@ -10,7 +14,7 @@ coverage-rest-client can be used in browsers only.
 Standalone minified and source versions can be found in the [releases section](https://github.com/Reading-eScience-Centre/coverage-rest-client/releases). The library can also be used within npm, currently as a GitHub dependency only due to its experimental character.
 
 As an example, we use the [covjson-reader](https://github.com/Reading-eScience-Centre/covjson-reader) library
-to load a [CoverageJSON](https://github.com/neothemachine/coveragejson) document which then is wrapped with the coverage-rest-client library in order to support pagination and run operations like subsetting or collection filtering server-side:
+to load a [CoverageJSON](https://covjson.org) document which then is wrapped with the coverage-rest-client library in order to support pagination and run operations like subsetting or collection filtering server-side:
 ```html
 <script src="https://cdn.jsdelivr.net/covjson-reader/0.7/covjson-reader.min.js"></script>
 <script src="coverage-rest-client.min.js"></script>
